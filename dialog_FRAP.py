@@ -20,6 +20,7 @@ def FRAPsetup(imp):
 	calibration = imp.getCalibration()
 	if calibration.frameInterval is None:
 		default_interval=0
+		setCalFlag=1
 	else:
 		default_interval=calibration.frameInterval
 		
@@ -28,23 +29,34 @@ def FRAPsetup(imp):
 	gd.addChoice("Analyze channel:", channels, channels[0])
 	
 
-	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 30)  
+	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 30)
+	gd.addCheckbox("Automatic FRAP frame detection?", True)
+	gd.addNumericField("Manual FRAP frame:", 0, 0)
+	gd.addMessage("Automatic FRAP checkbox has to be unchecked for maual selection to work")
+		
 	gd.showDialog()  
 	  
   	if gd.wasCanceled():  
 		IJ.log("User canceled dialog!")  
 		return  
-  # Read out the options 
+  	# Read out the options 
   	
   	frame_interval = gd.getNextNumber()
   	channel = int(gd.getNextChoice())  
-  	max_frame = gd.getNextNumber()
+  	max_frame = int(gd.getNextNumber())
+  	manual_FRAP_frame = int(gd.getNextNumber())
+  	autoFRAPflag=gd.getNextBoolean()
 
-#Extract the desired channel
+	#Set the frame interval in calibration
+
+	calibration.frameInterval = frame_interval
+	imp.setCalibration(calibration)
+	
+	#Extract the desired channel
   	   
   	imp=channelSelector(imp,channel)	
   	
-  	return imp, frame_interval, max_frame  
+  	return imp, max_frame, manual_FRAP_frame, autoFRAPflag
 
 def channelSelector(imp, channelno):
 	'''
@@ -56,5 +68,5 @@ def channelSelector(imp, channelno):
 
 
 current_imp  = WindowManager.getCurrentImage()
-current_imp, frame_interval, max_frame = FRAPsetup(current_imp)
-current_imp.show()
+current_imp, max_frame, maual_FRAP_frame, manualFRAPflag = FRAPsetup(current_imp)
+print current_imp, max_frame, maual_FRAP_frame, manualFRAPflag
