@@ -1,14 +1,72 @@
+"""
+This plugin is extensively based on the Jython FRAP analysis script from:
+http://fiji.sc/Analyze_FRAP_movies_with_a_Jython_script
+"""
+
 import java.awt.Color as Color
 from ij import WindowManager as WindowManager
 from ij.plugin.frame import RoiManager as RoiManager
 from ij.process import ImageStatistics as ImageStatistics
 from ij.measure import Measurements as Measurements
+from ij.measure import ResultsTable
 from ij import IJ as IJ
 from ij.measure import CurveFitter as CurveFitter
 from ij.gui import Plot as Plot
 from ij.gui import PlotWindow as PlotWindow
-from ij.gui import GenericDialog  
+from ij.gui import GenericDialog
+from ij.plugin import ChannelSplitter
 import math
+
+def FRAPsetupDialog(imp):
+
+	gd = GenericDialog("FRAP analysis options")
+	calibration = imp.getCalibration()
+	if calibration.frameInterval is None:
+		default_interval=0
+	else:
+		default_interval=calibration.frameInterval
+		
+	gd.addNumericField("Frame interval (s):", default_interval, 3)  # show 3 decimals    
+	channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
+	gd.addChoice("Analyze channel:", channels, channels[0])
+	
+
+	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 30)
+	gd.addCheckbox("Automatic post bleach frame detection?", True)
+	gd.addNumericField("First post bleach frame:", 6, 0)
+	gd.addMessage("Automatic checkbox has to be unchecked for maual selection to work")
+		
+	gd.showDialog()  
+	  
+  	if gd.wasCanceled():  
+		IJ.log("User canceled dialog!")  
+		return  
+  	# Read out the options 
+  	
+  	frame_interval = gd.getNextNumber()
+  	channel = int(gd.getNextChoice())  
+  	max_frame = int(gd.getNextNumber())
+  	manual_FRAP_frame = int(gd.getNextNumber()-1) #Sic 0-index!
+  	autoFRAPflag=gd.getNextBoolean()
+
+	#Set the frame interval in calibration
+
+	calibration.frameInterval = frame_interval
+	imp.setCalibration(calibration)
+	
+	#Extract the desired channel
+  	   
+  	imp=channelSelector(imp,channel)	
+  	
+  	return imp, max_frame, manual_FRAP_frame, autoFRAPflag
+
+def channelSelector(imp, channelno):
+	'''
+	arguments imp: imageProcessor, channelno: imteger, channel number
+	returns an imp containing the desired channel
+	'''
+	imps=ChannelSplitter.split(imp)
+	return imps[(channelno-1)]
 
 
  
@@ -23,11 +81,13 @@ roi_norm    = roi_list[1];
 
 # Get current image plus and image processor
 current_imp  = WindowManager.getCurrentImage()
+# Pass current imp through the FRAPsetupDialog
+current_imp, max_frame, manual_FRAP_frame, autoFRAPflag = FRAPsetupDialog(current_imp)
 stack        = current_imp.getImageStack()
 calibration  = current_imp.getCalibration()
-
-# Specify up to what frame to fit and plot.
-n_slices = current_imp.getNFrames()
+title		 = current_imp.getTitle()
+# Specify up to what frame to fit and plot, set in FRAPsetupDialog
+n_slices = max_frame
 
 #############################################
  
@@ -62,12 +122,17 @@ for i in range(0, n_slices):
 # Gather image parameters
 frame_interval = calibration.frameInterval
 time_units = calibration.getTimeUnit()
-IJ.log('For image ' + current_imp.getTitle() )
+IJ.log('For image ' + title )
 IJ.log('Time interval is ' + str(frame_interval) + ' ' + time_units)
   
-# Find minimal intensity value in FRAP and bleach frame
-min_intensity = min( If )
-bleach_frame = If.index( min_intensity )
+#Automatic FRAP frame detection minimal intensity value in FRAP and bleach frame
+if autoFRAPflag:
+	min_intensity = min( If )
+	bleach_frame = If.index( min_intensity )
+else:
+	min_intensity = If[manual_FRAP_frame]
+	bleach_frame = manual_FRAP_frame
+
 IJ.log('FRAP frame is ' + str(bleach_frame+1) + ' at t = ' + str(bleach_frame * frame_interval) + ' ' + time_units )
   
 # Compute mean pre-bleach intensity
@@ -129,5 +194,7 @@ str1 = ('Half-recovery time = %.2f ' + time_units) % thalf
 IJ.log( str1 )
 str2 = "Mobile fraction = %.1f %%" % (100 * mobile_fraction)
 IJ.log( str2 )
+
+headers=['File','Half.recovery.time', 'Mobile.fraction']
 
 
