@@ -7,18 +7,26 @@ from ij import IJ as IJ
 from ij.measure import CurveFitter as CurveFitter
 from ij.gui import Plot as Plot
 from ij.gui import PlotWindow as PlotWindow
-from ij.gui import GenericDialog  
 import math
 
+from ij.gui import GenericDialog  
+from ij.plugin import ChannelSplitter
 
-def getOptions(imp):
+
+
+def FRAPsetup(imp):
 
 	gd = GenericDialog("FRAP analysis options")
 	calibration = imp.getCalibration()
-	#if calibration.frameInterval
-	gd.addNumericField("Frame interval (s):", 0, 3)  # show 3 decimals    
+	if calibration.frameInterval is None:
+		default_interval=0
+	else:
+		default_interval=calibration.frameInterval
+		
+	gd.addNumericField("Frame interval (s):", default_interval, 3)  # show 3 decimals    
 	channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
 	gd.addChoice("Analyze channel:", channels, channels[0])
+	
 
 	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 30)  
 	gd.showDialog()  
@@ -29,19 +37,24 @@ def getOptions(imp):
   # Read out the options 
   	
   	frame_interval = gd.getNextNumber()
-  	channel = gd.getNextChoice()  
+  	channel = int(gd.getNextChoice())  
   	max_frame = gd.getNextNumber()
 
-#Extract the desired channel as a new imp instance
+#Extract the desired channel
   	   
-  	stack_in = imp.getImageStack()
-	stack_out = ImageStack(imp.width, imp.height)  
-  	for i in xrange(1, imp.getNSlices()+1):
-  		
+  	imp=channelSelector(imp,channel)	
   	
-  	return frame_interval, channel, max_frame  
+  	return imp, frame_interval, max_frame  
+
+def channelSelector(imp, channelno):
+	'''
+	arguments imp: imageProcessor, channelno: imteger, channel number
+	returns an imp containing the desired channel
+	'''
+	imps=ChannelSplitter.split(imp)
+	return imps[(channelno-1)]
+
 
 current_imp  = WindowManager.getCurrentImage()
-out=getOptions(current_imp)
-
-IJ.log(out[1])
+current_imp, frame_interval, max_frame = FRAPsetup(current_imp)
+current_imp.show()
