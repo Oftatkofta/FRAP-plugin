@@ -9,6 +9,9 @@ from ij import IJ, ImagePlus, ImageStack
 import ij.process.ImageStatistics as ImageStatistics
 from ij.measure import Measurements as Measurements
 from ij import IJ as IJ
+import java.awt.Color as Color
+from ij.gui import Plot as Plot
+from ij.gui import PlotWindow as PlotWindow	
 
 def roiCenterer(ip, roi):
     """Arguments: ip:ImageProcessor, roi:Region of intrest.
@@ -102,5 +105,26 @@ for i in range(len(means1)):
 	#rt.addValue("Frame.interval",frame_interval)
 rt.disableRowLabels()
 rt.show(title)
+
+maxc1=max(means1)
+maxc2=max(means2)
+if maxc1>maxc2:
+    plotlim = maxc1
+else:
+    plotlim = maxc2
+
+time=range(0,len(means1))
+plot = Plot("Traced intensity curve for " + imp.getTitle(), "Time", "Mean intensity", [], [])
+plot.setLimits(1, n_frames+1, 0, plotlim );
+plot.setLineWidth(2)
+
+plot.setColor(Color.GREEN)
+plot.addPoints(time, means1, Plot.LINE)
+
+plot.setColor(Color.RED)
+plot.addPoints(time, means2, Plot.LINE)
+ 
+plot.setColor(Color.black)
+plot_window =  plot.show()
 
 
