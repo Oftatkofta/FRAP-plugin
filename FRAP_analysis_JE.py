@@ -12,7 +12,7 @@ from ij.measure import ResultsTable
 from ij import IJ as IJ
 from ij.measure import CurveFitter as CurveFitter
 from ij.gui import Plot as Plot
-from ij.gui import PlotWindow as PlotWindow
+from ij.gui import PlotWindow as PlotWindow	
 from ij.gui import GenericDialog
 from ij.plugin import ChannelSplitter
 import math
@@ -22,16 +22,17 @@ def FRAPsetupDialog(imp):
 	gd = GenericDialog("FRAP analysis options")
 	calibration = imp.getCalibration()
 	if calibration.frameInterval is None:
-		default_interval=0
+		default_interval = 0.0
 	else:
 		default_interval=calibration.frameInterval
 		
-	gd.addNumericField("Frame interval (s):", default_interval, 3)  # show 3 decimals    
+		
+	gd.addNumericField("Frame interval (s):", 1.57, 3)  # show 3 decimals    
 	channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
 	gd.addChoice("Analyze channel:", channels, channels[0])
 	
 
-	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 30)
+	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 105)
 	gd.addCheckbox("Automatic post bleach frame detection?", True)
 	gd.addNumericField("First post bleach frame:", 6, 0)
 	gd.addMessage("Automatic checkbox has to be unchecked for maual selection to work")
@@ -115,9 +116,7 @@ for i in range(0, n_slices):
  
     # Do the same for non-FRAPed area
     ip.setRoi(roi_norm)
-    stats = ImageStatistics.getStatistics(ip, Measurements.MEAN, calibration);
-    mean = stats.mean
-    In.append( mean  )
+        
   
 # Gather image parameters
 frame_interval = calibration.frameInterval
@@ -195,6 +194,15 @@ IJ.log( str1 )
 str2 = "Mobile fraction = %.1f %%" % (100 * mobile_fraction)
 IJ.log( str2 )
 
-headers=['File','Half.recovery.time', 'Mobile.fraction']
+IJ.run("Clear Results")
 
 
+rt=ResultsTable()
+
+for i in range(len(xtofit)):
+	rt.incrementCounter()
+	rt.addValue('Time.pb',xtofit[i])
+	rt.addValue("Norm.int",ytofit[i])
+	rt.addValue("Frame.interval",frame_interval)
+rt.disableRowLabels()
+rt.show(title)
