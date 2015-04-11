@@ -10,6 +10,22 @@ import ij.process.ImageStatistics as ImageStatistics
 from ij.measure import Measurements as Measurements
 from ij import IJ as IJ
 
+def roiCenterer(ip, roi, cal):
+    """Arguments: ip:ImageProcessor, roi:Region of intrest, cal:calibration of ip.
+    Returns an OvalRoi which is centered on the center of mass of the input roi
+    applied to the ImageProcessor"""
+    
+    roi_w=roi.getFloatWidth()
+    roi_h=roi.getFloatHeight()
+    ip.setRoi(roi)
+    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
+    x=cal.getRawX(stats.xCenterOfMass)
+    y=cal.getRawY(stats.yCenterOfMass)
+    roi_x=x-roi_w/2
+    roi_y=y-roi_h/2
+    roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    return roi
+
 imp = WindowManager.getCurrentImage()
 stack = imp.getImageStack()
 stack2 = imp.createEmptyStack()
@@ -21,6 +37,7 @@ channel_to_track=imp.getChannel()
 start_frame=imp.getFrame()
 n_frames=imp.getNFrames()
 stacktoanalyze=1
+no_of_centerings=5
 
 
 # Get the ROIs
@@ -41,6 +58,10 @@ for i in range(start_frame, n_frames+1):
     # Get the current slice
     ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stacktoanalyze,i))
     roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    for i in range (no_of_centerings):
+        roi=roiCenterer(ip, roi, cal)
+        roi_x=roi_1.getXBase()
+        roi_y=roi_1.getYBase()
     ip.setRoi(roi)
     # Make a measurement in it
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
@@ -74,7 +95,7 @@ rt=ResultsTable()
 for i in range(len(means1)):
 	rt.incrementCounter()
 	rt.addValue('Channel.1.Mean',means1[i])
-	rt.addValue('Channel.2.Mean',means2[i])
+	#rt.addValue('Channel.2.Mean',means2[i])
 	rt.addValue('Center.of.mass.X', cx[i])
 	rt.addValue('Center.of.mass.Y', cy[i])
 	
