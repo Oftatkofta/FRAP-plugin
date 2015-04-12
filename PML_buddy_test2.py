@@ -37,7 +37,7 @@ channel_to_track=imp.getChannel()
 start_frame=imp.getFrame()
 n_frames=imp.getNFrames()
 stack_to_track=1
-no_of_centerings=4
+no_of_centerings=10
 
 
 # Get the ROIs
