@@ -36,8 +36,8 @@ n_channels = imp.getNChannels()
 channel_to_track=imp.getChannel()
 start_frame=imp.getFrame()
 n_frames=imp.getNFrames()
-stack_to_track=1
-no_of_centerings=5
+stacktoanalyze=1
+no_of_centerings=4
 
 
 # Get the ROIs
@@ -52,53 +52,65 @@ roi_y=roi_1.getYBase()
 roi_w=roi_1.getFloatWidth()
 roi_h=roi_1.getFloatHeight()
 
-cx, cy, means1, means2=[],[],[],[]
+#Create a bunch of empty lists to keep track of results
+c1x, c1y, c2x, c2y, means1, means2=[],[],[],[],[],[]
 
+#loop through the frames that you want to track
 for i in range(start_frame, n_frames+1):
-    # Get the current slice
-    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
+    # Get the imageProcessor of the channel to track and at the current frame
+    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stacktoanalyze,i))
     roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    
+    #Do the Roi centering the desired number of times
     for i in range (no_of_centerings):
         roi=roiCenterer(ip, roi, cal)
         roi_x=roi_1.getXBase()
         roi_y=roi_1.getYBase()
-    ip.setRoi(roi)
-    # Make a measurement in it
-    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
-    x=cal.getRawX(stats.xCenterOfMass)
-    y=cal.getRawY(stats.yCenterOfMass)
-    roi_x=x-roi_w/2
-    roi_y=y-roi_h/2
-    roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
-    ip.setRoi(roi)
-    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
-    x=cal.getRawX(stats.xCenterOfMass)
-    y=cal.getRawY(stats.yCenterOfMass)
-    roi_x=x-roi_w/2
-    roi_y=y-roi_h/2
-    means1.append(stats.mean)
-    cx.append(x)
-    cy.append(y)
+    
     ip2=ip.duplicate()
-    ip2.setColor(ip.maxValue())
+    ip2.setColor(255)
     ip2.draw(roi)
     stack2.addSlice(ip2)
+    
+    
+    #Get Channel 1 IP and apply the centered roi
+    ip = stack.getProcessor(imp.getStackIndex(1,stacktoanalyze,i))
+    ip.setRoi(roi)
+    # Make a measurement in it and record the stats
+    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
+    x=cal.getRawX(stats.xCenterOfMass)
+    y=cal.getRawY(stats.yCenterOfMass)
+    means1.append(stats.mean)
+    c1x.append(x)
+    c1y.append(y)
+    
+    #Get Channel 2 IP, apply the centered roi and do the analysis
+    ip = stack.getProcessor(imp.getStackIndex(2,stacktoanalyze,i))
+    #roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    ip.setRoi(roi)
+    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
+    x=cal.getRawX(stats.xCenterOfMass)
+    y=cal.getRawY(stats.yCenterOfMass)
+    means2.append(stats.mean)
+    c2x.append(x)
+    c2y.append(y)
+
     
 im2 = ImagePlus(imp.getTitle()+'_Processed', stack2)
 im2.show()
 
 IJ.run("Clear Results")
 
-
 rt=ResultsTable()
 
 for i in range(len(means1)):
 	rt.incrementCounter()
 	rt.addValue('Channel.1.Mean',means1[i])
-	#rt.addValue('Channel.2.Mean',means2[i])
-	rt.addValue('Center.of.mass.X', cx[i])
-	rt.addValue('Center.of.mass.Y', cy[i])
-	
-	#rt.addValue("Frame.interval",frame_interval)
+	rt.addValue('Channel.2.Mean',means2[i])
+	rt.addValue('Ch1.Center.of.mass.X', c1x[i])
+	rt.addValue('Ch1.Center.of.mass.Y', c1y[i])
+	rt.addValue('Ch2.Center.of.mass.X', c2x[i])
+	rt.addValue('Ch2.Center.of.mass.Y', c2y[i])
+
 rt.disableRowLabels()
 rt.show(title)
