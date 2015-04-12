@@ -31,9 +31,12 @@ def roiCenterer(ip, roi, cal):
     return roi
 
 imp = WindowManager.getCurrentImage()
+impcopy = imp.clone()
+
 stack = imp.getImageStack()
-stack1 = imp.createEmptyStack()
-stack2 = imp.createEmptyStack()
+stackcopy = stack.duplicate()
+impcopy.setStack(title+'_copy',stackcopy)
+
 cal = imp.getCalibration()
 title = imp.getTitle()
 n_channels = imp.getNChannels()
@@ -65,9 +68,9 @@ means1, means2=[],[]
 
 for i in range(start_frame, n_frames+1):
     # Get the current frame
-    #imp.setPositionWithoutUpdate(channel_to_track,stack_to_track,i)
-    #ip=imp.getProcessor()
-    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
+    imp.setPositionWithoutUpdate(channel_to_track,stack_to_track,i)
+    ip=imp.getProcessor()
+    #ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
     roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     for i in range (no_of_centerings):
@@ -75,11 +78,10 @@ for i in range(start_frame, n_frames+1):
         roi_x=roi_1.getXBase()
         roi_y=roi_1.getYBase()
     
-    
-    #roi2 = roi.clone()
-    #roi.setPosition(channel_to_track,stacktoanalyze,i)
-    #roi.setImage(imp)
-    #overlay.add(roi)
+    impcopy.setPositionWithoutUpdate(channel_to_track,stack_to_track,i)
+    ipcopy=impcopy.getProcessor()
+    roi.drawpixels(ipcopy)
+
 
     #Go to channel 1 of current frame position
     ip = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
@@ -93,14 +95,7 @@ for i in range(start_frame, n_frames+1):
     c1y.append(y)
     means1.append(stats.mean)
 
-    #Copy the IP
-    ip1 = ip.duplicate()
-    ip1.setRoi(roi)
-    ip1.setColor(255)
-    ip1.draw(roi)
-    stack1.addSlice(ip1)
-    #stack2.update(ip2)
-
+   
     #Go to channel 2 of current frame position
     ip = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
     #Get the imageProcessor
@@ -115,23 +110,12 @@ for i in range(start_frame, n_frames+1):
     c2x.append(x)
     c2y.append(y)
     
-    #Copy the IP
-    ip2 = ip.duplicate()
-    ip2.setRoi(roi)
-    ip2.setColor(255)
-    ip2.draw(roi)
-    stack2.addSlice(ip2)
-    #stack2.update(ip2)
 
     
-imp1 = ImagePlus(imp.getTitle()+'_Processed', stack1)
-imp2 = ImagePlus(imp.getTitle()+'_Processed', stack2)
 
-imp1.show()
-imp2.show()
 
-#imp.setOverlay(overlay)
-#imp.show()
+
+impcopy.show()
     
 IJ.run("Clear Results")
 
