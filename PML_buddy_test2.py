@@ -36,7 +36,7 @@ n_channels = imp.getNChannels()
 channel_to_track=imp.getChannel()
 start_frame=imp.getFrame()
 n_frames=imp.getNFrames()
-stacktoanalyze=1
+stack_to_track=1
 no_of_centerings=4
 
 
@@ -58,7 +58,7 @@ c1x, c1y, c2x, c2y, means1, means2=[],[],[],[],[],[]
 #loop through the frames that you want to track
 for i in range(start_frame, n_frames+1):
     # Get the imageProcessor of the channel to track and at the current frame
-    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stacktoanalyze,i))
+    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
     roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     #Do the Roi centering the desired number of times
@@ -68,13 +68,13 @@ for i in range(start_frame, n_frames+1):
         roi_y=roi_1.getYBase()
     
     ip2=ip.duplicate()
-    ip2.setColor(255)
+    ip2.setColor(ip.maxValue())
     ip2.draw(roi)
     stack2.addSlice(ip2)
     
     
     #Get Channel 1 IP and apply the centered roi
-    ip = stack.getProcessor(imp.getStackIndex(1,stacktoanalyze,i))
+    ip = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
     ip.setRoi(roi)
     # Make a measurement in it and record the stats
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
@@ -85,7 +85,7 @@ for i in range(start_frame, n_frames+1):
     c1y.append(y)
     
     #Get Channel 2 IP, apply the centered roi and do the analysis
-    ip = stack.getProcessor(imp.getStackIndex(2,stacktoanalyze,i))
+    ip = stack.getProcessor(imp.getStackIndex(2,stack_to_track,i))
     #roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     ip.setRoi(roi)
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
