@@ -21,12 +21,12 @@ def setupDialog(imp):
     gd.addMessage("Welcome to PML Buddy 0.1, you are analyzing: "+imp.getTitle())
     calibration = imp.getCalibration()
 
-    if calibration.frameInterval is None:
-        default_interval = 0.00
-    else:
+    if calibration.frameInterval > 0:
         default_interval=calibration.frameInterval
+    else:
+        default_interval = 0
 
-    gd.addNumericField("Frame interval (s):", default_interval, 3)  # show 3 decimals    
+    gd.addNumericField("Frame interval (s):", default_interval, 2)  # show 2 decimals    
     gd.addMessage("(optional)")
     channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
     gd.addChoice("Channel to track:", channels, channels[1])
@@ -141,7 +141,7 @@ for i in range(start_frame, stop_frame+1):
     stats = ImageStatistics.getStatistics(ip1, ImageStatistics.CENTER_OF_MASS, cal)
     x=cal.getRawX(stats.xCenterOfMass)
     y=cal.getRawY(stats.yCenterOfMass)
-    means1.append(stats.mode)
+    means1.append(stats.maxCount)
     c1x.append(x)
     c1y.append(y)
     
@@ -152,7 +152,7 @@ for i in range(start_frame, stop_frame+1):
     stats = ImageStatistics.getStatistics(ip2, ImageStatistics.CENTER_OF_MASS, cal)
     x=cal.getRawX(stats.xCenterOfMass)
     y=cal.getRawY(stats.yCenterOfMass)
-    means2.append(stats.mode)
+    means2.append(stats.mean)
     c2x.append(x)
     c2y.append(y)
 
@@ -192,9 +192,15 @@ if maxc1>maxc2:
 else:
     plotlim = maxc2
 
-time=range(0,len(means1))
-plot = Plot("Traced intensity curve for " + imp.getTitle(), "Time", "Mean intensity", [], [])
-plot.setLimits(1, stop_frame+1, 0, plotlim );
+
+if frame_interval > 0:
+    time = [frame_interval*frame for frame in range(0,len(means1))]
+    xlab="Time (s)"
+else:
+    time=range(0,len(means1))
+    xlab="frame"
+plot = Plot("Traced intensity curve for " + imp.getTitle(), xlab, "Mean intensity", [], [])
+plot.setLimits(1, max(time), 0, plotlim );
 plot.setLineWidth(2)
 
 plot.setColor(Color.GREEN)
