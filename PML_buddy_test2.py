@@ -34,12 +34,13 @@ def setupDialog(imp):
     roichoises = ['Current active Roi','First Roi in RoiManager']    
     gd.addChoice('Roi to use for tracking: (not implemented yet)', roichoises, roichoises[1])
     
-    gd.addNumericField("Number of ROI centerings to perform per frame (3-6 is generally ok):", 6, 0)
+    gd.addNumericField("Number of Roi centerings to perform per frame (3-6 is generally ok):", 6, 0)
+    gd.addNumericField("Diameter of analysis Roi (in pixels):)",20,0)
     gd.addSlider("Start tracking at frame:", 1, imp.getNFrames(), imp.getFrame())
     gd.addSlider("Stop tracking at frame:", 1, imp.getNFrames(), imp.getNFrames())
     gd.addCheckbox("Display tracking in new window", True)
-    gd.addCheckbox("Show plot", True)
-    gd.addCheckbox("Show results table", True)
+    gd.addCheckbox("Show plot", False)
+    gd.addCheckbox("Show results table", False)
     
     gd.showDialog()  
 	  
@@ -65,6 +66,22 @@ def roiCenterer(ip, roi, cal):
     roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     return roi
 
+def roiScaler(roi, new_diameter):
+    """Agruments: roi: Region of intrest, new_diameter: returned roi diameter
+    Returns a new OvalRoi centered on the input roi diameter""" 
+    roi_x=roi.getXBase()
+    roi_y=roi.getYBase()
+    roi_w=roi.getFloatWidth()
+    roi_h=roi.getFloatHeight()
+    
+    roi_x=roi_x+roi_w*0.5-new_diameter*0.5
+    roi_y=roi_y+roi_h*0.5-new_diameter*0.5
+    scaled_roi=OvalRoi(roi_x, roi_y, new_diameter, new_diameter)
+
+    return scaled_roi
+    
+
+     
 #Start by getting the active image window
 imp = WindowManager.getCurrentImage()
 cal = imp.getCalibration()
@@ -75,7 +92,8 @@ gd=setupDialog(imp)
 frame_interval = gd.getNextNumber()
 channel_to_track = int(gd.getNextChoice())
 roi_to_use = gd.getNextChoice()  
-no_of_centerings = gd.getNextNumber()
+no_of_centerings = int(gd.getNextNumber())
+analsis_roi_diameter = int(gd.getNextNumber())
 start_frame = int(gd.getNextNumber())
 stop_frame = int(gd.getNextNumber())
 
@@ -83,10 +101,12 @@ if (start_frame > stop_frame):
     IJ.showMessage("Start frame > Stop frame!")
     raise RuntimeException("Start frame > Stop frame!")
 
+#Setting flags
 showTrackFlag=gd.getNextBoolean()
 showPlotFlag=gd.getNextBoolean()
 showResultsFlag=gd.getNextBoolean()
-
+showCropFlag=1
+analysisRoiFlag=0
     
 #Set the frame interval in calibration
     
@@ -94,11 +114,9 @@ cal.frameInterval = frame_interval
 imp.setCalibration(cal)
     
 
-  	   
-
-
 stack = imp.getImageStack()
-stack2 = imp.createEmptyStack()
+stack_track = imp.createEmptyStack()
+
 title = imp.getTitle()
 n_channels = imp.getNChannels()
 stack_to_track=1
@@ -117,26 +135,33 @@ roi_y=roi_1.getYBase()
 roi_w=roi_1.getFloatWidth()
 roi_h=roi_1.getFloatHeight()
 
+stack_crop = ImageStack(int(roi_w), int(roi_h))
 #Create a bunch of empty lists to keep track of results
 c1x, c1y, c2x, c2y, means1, means2=[],[],[],[],[],[]
 
 #loop through the frames that you want to track
 for i in range(start_frame, stop_frame+1):
     # Get the imageProcessor of the channel to track and at the current frame
-    ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
-    roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
+    track_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     #Do the Roi centering the desired number of times
     for i in range (no_of_centerings):
-        roi=roiCenterer(ip, roi, cal)
-        roi_x=roi.getXBase()
-        roi_y=roi.getYBase()
-    ip.setRoi(roi)
-
+        track_roi=roiCenterer(track_ip, track_roi, cal)
     
-    #Get Channel 1 IP and apply the centered roi
+    roi_x=track_roi.getXBase()
+    roi_y=track_roi.getYBase()
+    track_ip.setRoi(track_roi)
+
+    if analysisRoiFlag:
+        analysis_roi=roiScaler(track_roi, analsis_roi_diameter)
+    else:
+        analysis_roi=track_roi.clone()
+    #Get Channel 1 IP and apply the centered roi with the desired diameter
     ip1 = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
-    ip1.setRoi(roi)
+
+    ip1.setRoi(analysis_roi)
+    
     # Make a measurement in it and record the stats
     stats = ImageStatistics.getStatistics(ip1, ImageStatistics.CENTER_OF_MASS, cal)
     x=cal.getRawX(stats.xCenterOfMass)
@@ -148,7 +173,7 @@ for i in range(start_frame, stop_frame+1):
     #Get Channel 2 IP, apply the centered roi and do the analysis
     ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,i))
     #roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
-    ip2.setRoi(roi)
+    ip2.setRoi(analysis_roi)
     stats = ImageStatistics.getStatistics(ip2, ImageStatistics.CENTER_OF_MASS, cal)
     x=cal.getRawX(stats.xCenterOfMass)
     y=cal.getRawY(stats.yCenterOfMass)
@@ -157,15 +182,38 @@ for i in range(start_frame, stop_frame+1):
     c2y.append(y)
 
     if showTrackFlag:
-        ip2=ip.duplicate()
-        ip2.setColor(ip.maxValue())
-        ip2.draw(roi)
-        stack2.addSlice(ip2)
+        ip_track=track_ip.duplicate()
+        ip_track.setColor(track_ip.maxValue()/2)
+        ip_track.draw(track_roi)
+        ip_track.setColor(track_ip.maxValue())
+        ip_track.draw(analysis_roi)
+        stack_track.addSlice(ip_track)
+
+    if showCropFlag:
+        ip1 = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
+        ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,i))
+        ip1.setRoi(track_roi)
+        ip2.setRoi(track_roi)
+        ip1_crop=ip1.crop()
+        ip2_crop=ip2.crop()
+       
+        #ip_crop.setColor(ip.maxValue())
+        #ip_crop.draw(analysis_roi)
+        stack_crop.addSlice(ip1_crop)
+        stack_crop.addSlice(ip2_crop)
+
 
 if showTrackFlag:    
-    im2 = ImagePlus(title+'_Processed', stack2)
-    im2.setCalibration(cal)
-    im2.show()
+    imp_track = ImagePlus(title+'_Processed', stack_track)
+    imp_track.setCalibration(cal)
+    imp_track.show()
+
+if showCropFlag:
+    imp_crop = IJ.createHyperStack(title, int(roi_w), int(roi_h), n_channels, 1, (stop_frame+1)-start_frame, imp.getBitDepth())
+    imp_crop.setStack(stack_crop)
+    imp_crop.setCalibration(cal)
+    #imp_crop.setDimensions(2,1,(stop_frame+1)-start_frame)
+    imp_crop.show()
 
 IJ.run("Clear Results")
 
