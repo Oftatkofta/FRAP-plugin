@@ -41,6 +41,8 @@ def setupDialog(imp):
     gd.addCheckbox("Display tracking in new window", True)
     gd.addCheckbox("Show plot", False)
     gd.addCheckbox("Show results table", False)
+    gd.addCheckbox("Show cropped region", True)
+    gd.addCheckbox("Use scaled down analysis ROI", True)
     
     gd.showDialog()  
 	  
@@ -122,8 +124,8 @@ no_frames_tracked=(stop_frame-start_frame)+1
 showTrackFlag=gd.getNextBoolean()
 showPlotFlag=gd.getNextBoolean()
 showResultsFlag=gd.getNextBoolean()
-showCropFlag=1
-analysisRoiFlag=0
+showCropFlag=gd.getNextBoolean()
+analysisRoiFlag=gd.getNextBoolean()
     
 #Set the frame interval in calibration
     
@@ -152,7 +154,11 @@ roi_y=roi_1.getYBase()
 roi_w=roi_1.getFloatWidth()
 roi_h=roi_1.getFloatHeight()
 
-stack_crop = ImageStack(int(roi_w), int(roi_h))
+if analysisRoiFlag:
+    stack_crop = ImageStack(int(analsis_roi_diameter), int(analsis_roi_diameter))
+else:
+    stack_crop = ImageStack(int(roi_w), int(roi_h))
+
 
 #Create a dictionary to keep track of results
 result_dict={}
@@ -180,11 +186,13 @@ for i in range(start_frame, stop_frame+1):
         analysis_roi=track_roi.clone()
     
     #Get Channel 1&2 IPs and apply the centered roi with the desired diameter
-    ip1 = stack.getProcessor(imp.getStackIndex(1,stack_to_track,i))
+    imp.setPosition(imp.getStackIndex(1,stack_to_track,i))
+    ip1 = imp.getProcessor()
     ip1_crop=channelStats(ip1, 1, analysis_roi, result_dict, cal)
-
-    ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,i))
-    ip2_crop=channelStats(ip1, 2, analysis_roi, result_dict, cal)
+    
+    imp.setPosition(imp.getStackIndex(2,stack_to_track,i))
+    ip2 = imp.getProcessor()
+    ip2_crop=channelStats(ip2, 2, analysis_roi, result_dict, cal)
        
 
     if showTrackFlag:
