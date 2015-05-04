@@ -167,9 +167,9 @@ for key in result_keys:
     result_dict[key]=[]
 
 #loop through the frames that you want to track
-for i in range(start_frame, stop_frame+1):
-    # Get the imageProcessor of the channel to track and at the current frame
-    track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,i))
+for frame in range(start_frame, stop_frame+1):
+    # Get the imageProcessor of the channel to track at the current frame
+    track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,frame))
     track_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     #Do the Roi centering the desired number of times
@@ -186,11 +186,11 @@ for i in range(start_frame, stop_frame+1):
         analysis_roi=track_roi.clone()
     
     #Get Channel 1&2 IPs and apply the centered roi with the desired diameter
-    imp.setPosition(imp.getStackIndex(1,stack_to_track,i))
+    imp.setPosition(imp.getStackIndex(1,stack_to_track,frame))
     ip1 = imp.getProcessor()
     ip1_crop=channelStats(ip1, 1, analysis_roi, result_dict, cal)
     
-    imp.setPosition(imp.getStackIndex(2,stack_to_track,i))
+    imp.setPosition(imp.getStackIndex(2,stack_to_track,frame))
     ip2 = imp.getProcessor()
     ip2_crop=channelStats(ip2, 2, analysis_roi, result_dict, cal)
        
