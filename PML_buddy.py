@@ -186,21 +186,22 @@ for frame in range(start_frame, stop_frame+1):
         analysis_roi=track_roi.clone()
     
     #Get Channel 1&2 IPs and apply the centered roi with the desired diameter
-    imp.setPosition(imp.getStackIndex(1,stack_to_track,frame))
-    ip1 = imp.getProcessor()
+    
+    ip1 = stack.getProcessor(imp.getStackIndex(1,stack_to_track,frame))
     ip1_crop=channelStats(ip1, 1, analysis_roi, result_dict, cal)
     
-    imp.setPosition(imp.getStackIndex(2,stack_to_track,frame))
-    ip2 = imp.getProcessor()
+    ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,frame))
     ip2_crop=channelStats(ip2, 2, analysis_roi, result_dict, cal)
        
 
     if showTrackFlag:
         ip_track=track_ip.duplicate()
-        ip_track.setColor(track_ip.maxValue()/2)
-        ip_track.draw(track_roi)
         ip_track.setColor(track_ip.maxValue())
-        ip_track.draw(analysis_roi)
+        ip_track.draw(track_roi)
+        
+        if analysisRoiFlag:
+            ip_track.setColor(track_ip.maxValue()/2)
+            ip_track.draw(analysis_roi)
         stack_track.addSlice(ip_track)
 
     if showCropFlag:       
