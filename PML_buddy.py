@@ -26,7 +26,8 @@ def setupDialog(imp):
     else:
         default_interval = 0
 
-    gd.addNumericField("Frame interval (s):", default_interval, 2)  # show 2 decimals    
+    gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
+    gd.addStringField("time unit", "sec",3)
     gd.addMessage("(optional)")
     channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
     gd.addChoice("Channel to track:", channels, channels[1])
@@ -107,6 +108,7 @@ cal = imp.getCalibration()
 gd=setupDialog(imp)  	
 
 frame_interval = gd.getNextNumber()
+time_unit = gd.getNextString()
 channel_to_track = int(gd.getNextChoice())
 roi_to_use = gd.getNextChoice()  
 no_of_centerings = int(gd.getNextNumber())
@@ -130,6 +132,7 @@ analysisRoiFlag=gd.getNextBoolean()
 #Set the frame interval in calibration
     
 cal.frameInterval = frame_interval
+cal.setTimeUnit(time_unit)
 imp.setCalibration(cal)
     
 
@@ -244,7 +247,7 @@ if showPlotFlag:
 
     if frame_interval > 0:
         time = [frame_interval*frame for frame in range(0,no_frames_tracked)]
-        xlab="Time (s)"
+        xlab="Time ("+time_unit+")"
     else:
         time=range(0,no_frames_tracked)
         xlab="frame"
