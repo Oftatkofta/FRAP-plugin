@@ -223,47 +223,43 @@ if showCropFlag:
     #imp_crop.setDimensions(2,1,(stop_frame+1)-start_frame)
     imp_crop.show()
 
-IJ.run("Clear Results")
-
-rt=ResultsTable()
-
-for i in range(no_frames_tracked):
-    rt.incrementCounter()
-    
-    for key in result_keys:
-        rt.addValue(str(key),result_dict[key][i])
-        
-rt.disableRowLabels()
-
 if showResultsFlag:
+    IJ.run("Clear Results")
+    rt=ResultsTable()
+    for i in range(no_frames_tracked):
+        rt.incrementCounter()
+        for key in result_keys:
+            rt.addValue(str(key),result_dict[key][i])
+        
+    rt.disableRowLabels()
     rt.show(title)
 
-maxc1=max(result_dict['means_ch1'])
-maxc2=max(result_dict['means_ch2'])
-if maxc1>maxc2:
-    plotlim = maxc1
-else:
-    plotlim = maxc2
-
-
-if frame_interval > 0:
-    time = [frame_interval*frame for frame in range(0,no_frames_tracked)]
-    xlab="Time (s)"
-else:
-    time=range(0,no_frames_tracked)
-    xlab="frame"
-plot = Plot("Traced intensity curve for " + imp.getTitle(), xlab, "Mean intensity", [], [])
-plot.setLimits(1, max(time), 0, plotlim );
-plot.setLineWidth(2)
-
-plot.setColor(Color.GREEN)
-plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
-
-plot.setColor(Color.RED)
-plot.addPoints(time, result_dict['means_ch2'], Plot.LINE)
- 
-plot.setColor(Color.black)
-
 if showPlotFlag:
+    maxc1=max(result_dict['means_ch1'])
+    maxc2=max(result_dict['means_ch2'])
+    if maxc1>maxc2:
+        plotlim = maxc1
+    else:
+        plotlim = maxc2
+
+    if frame_interval > 0:
+        time = [frame_interval*frame for frame in range(0,no_frames_tracked)]
+        xlab="Time (s)"
+    else:
+        time=range(0,no_frames_tracked)
+        xlab="frame"
+    
+    plot = Plot("Traced intensity curve for " + imp.getTitle(), xlab, "Mean intensity", [], [])
+    plot.setLimits(1, max(time), 0, plotlim );
+    plot.setLineWidth(2)
+    
+    plot.setColor(Color.GREEN)
+    plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
+
+    plot.setColor(Color.RED)
+    plot.addPoints(time, result_dict['means_ch2'], Plot.LINE)
+ 
+    plot.setColor(Color.black)
+
     plot_window =  plot.show()
 
