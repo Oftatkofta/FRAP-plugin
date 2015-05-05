@@ -13,7 +13,7 @@ import java.awt.Color as Color
 from ij.gui import Plot as Plot
 from ij.gui import PlotWindow as PlotWindow
 from ij.gui import GenericDialog
-
+import math
 
 def setupDialog(imp):
 
@@ -43,7 +43,8 @@ def setupDialog(imp):
     gd.addCheckbox("Show plot", False)
     gd.addCheckbox("Show results table", False)
     gd.addCheckbox("Show cropped region", True)
-    gd.addCheckbox("Use scaled down analysis ROI", True)
+    gd.addCheckbox("Use scaled analysis ROI", True)
+    gd.addCheckbox("Do colocalization analysis on Ch1 & Ch2", True)
     
     gd.showDialog()  
 	  
@@ -98,8 +99,94 @@ def channelStats(ip, channel, roi, resultdict, cal):
 
     return ip.crop()
 
+def colocRecorder(ip1, ip2, resultdict):
+    """Arguments:
+    ip1&ip2:ImageProcessors, resultdict:dict
+    Returns: nothing, updates resultdict
+    """
+    M=CalcMandersCoefficients(ip1, ip2)
+    M1=M[0]
+    M2=M[1]
+    resultdict['M1'].append(M1)
+    resultdict['M2'].append(M2)
+    resultdict['Pearson'].append(CalcPearsonsCoefficient(ip1, ip2))
+    resultdict['overlap_coefficient'].append(CalcOverlapCoefficient(ip1, ip2))
 
-     
+    return
+    
+def CalcOverlapCoefficient(ip1, ip2):
+    """
+    Aguments: ip1, ip2, two imageProcessors of equal size
+    Returns: float, representing overlap coefficient, as
+    specified in Manders et al. 1993
+    """
+    G = ip1.getPixels()
+    R = ip2.getPixels()
+    accum = 0
+    Gsum = 0
+    Rsum = 0
+    for i in range(len(G)):
+         accum+=G[i]*R[i]
+         Gsum += G[i]**2
+         Rsum += R[i]**2
+
+    if Gsum*Rsum==0:
+        return 0,0
+    return accum/math.sqrt(Gsum*Rsum)
+    
+
+def CalcMandersCoefficients(ip1, ip2):
+    """
+    Aguments: ip1, ip2, two imageProcessors of equal size
+    Returns: floats M1, M2, representing Manders coefficients, as
+    specified in Manders et al. 1993
+    """
+    G = ip1.getPixels()
+    R = ip2.getPixels()
+    Gcoloc = 0
+    Rcoloc = 0
+    for i in range(len(G)):
+         if G[i]>0:
+             Rcoloc+=R[i]
+         if R[i]>0:
+             Gcoloc+=G[i]
+         
+    Gsum = sum(G)
+    Rsum = sum(R)
+    
+    if Gsum*Rsum==0:
+        return 0,0
+        
+    return Gcoloc/float(Gsum), Rcoloc/float(Rsum)
+
+def CalcPearsonsCoefficient(ip1, ip2):
+    """
+    Aguments: ip1, ip2, two imageProcessors of equal size
+    Returns: float r, representing Pearson's coefficient, as
+    specified in Manders et al. 1993
+    """
+    G = ip1.getPixels()
+    R = ip2.getPixels()
+
+    Gsq = 0
+    Rsq = 0
+    
+    Gavg=sum(G)/float(len(G))
+    Ravg=sum(R)/float(len(R))
+
+    num=0
+    den=0
+    for i in range(len(G)):
+         Rdiff = R[i]-Ravg
+         Gdiff = G[i]-Gavg
+         num+=Rdiff*Gdiff
+         Gsq+=(Rdiff**2)
+         Rsq+=(Gdiff**2)
+         
+    if Gsq*Rsq==0:
+        return 0
+    return float(num)/(math.sqrt(Gsq)*math.sqrt(Rsq))
+    
 #Start by getting the active image window
 imp = WindowManager.getCurrentImage()
 cal = imp.getCalibration()
@@ -128,6 +215,7 @@ showPlotFlag=gd.getNextBoolean()
 showResultsFlag=gd.getNextBoolean()
 showCropFlag=gd.getNextBoolean()
 analysisRoiFlag=gd.getNextBoolean()
+colocalizationFlag=gd.getNextBoolean()
     
 #Set the frame interval in calibration
     
@@ -166,8 +254,15 @@ else:
 #Create a dictionary to keep track of results
 result_dict={}
 result_keys=['means_ch1','means_ch2','ch1x','ch1y','ch2x','ch2y']
+    
+if colocalizationFlag:
+    extra_keys=['M1', 'M2', 'Pearson', 'overlap_coefficient']
+    for extra in extra_keys: 
+        result_keys.append(extra)
+    
 for key in result_keys:
     result_dict[key]=[]
+  
 
 #loop through the frames that you want to track
 for frame in range(start_frame, stop_frame+1):
@@ -195,7 +290,9 @@ for frame in range(start_frame, stop_frame+1):
     
     ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,frame))
     ip2_crop=channelStats(ip2, 2, analysis_roi, result_dict, cal)
-       
+
+    if colocalizationFlag:
+        colocRecorder(ip1_crop, ip2_crop, result_dict)
 
     if showTrackFlag:
         ip_track=track_ip.duplicate()
@@ -220,10 +317,9 @@ if showTrackFlag:
     imp_track.show()
 
 if showCropFlag:
-    imp_crop = IJ.createHyperStack(title, int(roi_w), int(roi_h), n_channels, 1, no_frames_tracked, imp.getBitDepth())
+    imp_crop = IJ.createHyperStack(title+"_analysis_crop", int(roi_w), int(roi_h), n_channels, 1, no_frames_tracked, imp.getBitDepth())
     imp_crop.setStack(stack_crop)
     imp_crop.setCalibration(cal)
-    #imp_crop.setDimensions(2,1,(stop_frame+1)-start_frame)
     imp_crop.show()
 
 if showResultsFlag:
