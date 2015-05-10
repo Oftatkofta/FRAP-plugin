@@ -1,7 +1,8 @@
 #import ij.gui
 import ij.gui.Roi as Roi
 import ij.gui.OvalRoi as OvalRoi
-import ij.measure
+import ij.gui.Overlay as Overlay
+#import ij.measure
 from ij.measure import ResultsTable
 from ij import WindowManager as WindowManager
 from ij.plugin.frame import RoiManager as RoiManager
@@ -14,6 +15,7 @@ from ij.gui import Plot as Plot
 from ij.gui import PlotWindow as PlotWindow
 from ij.gui import GenericDialog
 import math
+
 
 def setupDialog(imp):
 
@@ -45,6 +47,7 @@ def setupDialog(imp):
     gd.addCheckbox("Show cropped region", True)
     gd.addCheckbox("Use scaled analysis ROI", True)
     gd.addCheckbox("Do colocalization analysis on Ch1 & Ch2", True)
+    gd.addCheckbox("Plot Colocalization coefficients", False)
     
     gd.showDialog()  
 	  
@@ -105,10 +108,8 @@ def colocRecorder(ip1, ip2, resultdict):
     Returns: nothing, updates resultdict
     """
     M=CalcMandersCoefficients(ip1, ip2)
-    M1=M[0]
-    M2=M[1]
-    resultdict['M1'].append(M1)
-    resultdict['M2'].append(M2)
+    resultdict['M1'].append(M[0])
+    resultdict['M2'].append(M[1])
     resultdict['Pearson'].append(CalcPearsonsCoefficient(ip1, ip2))
     resultdict['overlap_coefficient'].append(CalcOverlapCoefficient(ip1, ip2))
 
@@ -116,9 +117,10 @@ def colocRecorder(ip1, ip2, resultdict):
     
 def CalcOverlapCoefficient(ip1, ip2):
     """
+    Calculates Manders Overlap Coeficcient, MOC, as
+    specified in Manders et al. 1993. 
     Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: float, representing overlap coefficient, as
-    specified in Manders et al. 1993
+    Returns: float, representing overlap coefficient
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
@@ -131,15 +133,16 @@ def CalcOverlapCoefficient(ip1, ip2):
          Rsum += R[i]**2
 
     if Gsum*Rsum==0:
-        return 0,0
+        return 0
     return accum/math.sqrt(Gsum*Rsum)
     
 
 def CalcMandersCoefficients(ip1, ip2):
     """
+    Calculates Mandlers colocalization coefficients, MCC, , as
+    specified in Manders et al. 1993.
     Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: floats M1, M2, representing Manders coefficients, as
-    specified in Manders et al. 1993
+    Returns: floats M1, M2, representing Manders coefficients
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
@@ -161,9 +164,9 @@ def CalcMandersCoefficients(ip1, ip2):
 
 def CalcPearsonsCoefficient(ip1, ip2):
     """
+    Calculates Pearson's correlation coeficcient, PCC.
     Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: float r, representing Pearson's coefficient, as
-    specified in Manders et al. 1993
+    Returns: float r, representing Pearson's coefficient.
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
@@ -175,7 +178,7 @@ def CalcPearsonsCoefficient(ip1, ip2):
     Ravg=sum(R)/float(len(R))
 
     num=0
-    den=0
+    
     for i in range(len(G)):
          Rdiff = R[i]-Ravg
          Gdiff = G[i]-Gavg
@@ -185,7 +188,7 @@ def CalcPearsonsCoefficient(ip1, ip2):
          
     if Gsq*Rsq==0:
         return 0
-    return float(num)/(math.sqrt(Gsq)*math.sqrt(Rsq))
+    return num/(math.sqrt(Gsq*Rsq))
     
 #Start by getting the active image window
 imp = WindowManager.getCurrentImage()
@@ -216,6 +219,7 @@ showResultsFlag=gd.getNextBoolean()
 showCropFlag=gd.getNextBoolean()
 analysisRoiFlag=gd.getNextBoolean()
 colocalizationFlag=gd.getNextBoolean()
+showColPlotFlag=gd.getNextBoolean()
     
 #Set the frame interval in calibration
     
@@ -325,10 +329,10 @@ if showCropFlag:
 if showResultsFlag:
     IJ.run("Clear Results")
     rt=ResultsTable()
-    for i in range(no_frames_tracked):
+    for index in range(no_frames_tracked):
         rt.incrementCounter()
         for key in result_keys:
-            rt.addValue(str(key),result_dict[key][i])
+            rt.addValue(str(key),result_dict[key][index])
         
     rt.disableRowLabels()
     rt.show(title)
@@ -362,3 +366,30 @@ if showPlotFlag:
 
     plot_window =  plot.show()
 
+if showColPlotFlag:
+
+    if frame_interval > 0:
+        time = [frame_interval*frame for frame in range(0,no_frames_tracked)]
+        xlab="Time ("+time_unit+")"
+    else:
+        time=range(0,no_frames_tracked)
+        xlab="frame"
+
+    plot = Plot("Correlationcoefficients over time for " + imp.getTitle(), xlab, "Correlation coefficient", [], [])
+    plot.setLimits(1, max(time), -0.5, 3.2 );
+    plot.setLineWidth(2)
+    
+    plot.setColor(Color.GREEN)
+    plot.addPoints(time, result_dict['M1'], Plot.LINE)
+
+    plot.setColor(Color.RED)
+    plot.addPoints(time, result_dict['M2'], Plot.LINE)
+
+    plot.setColor(Color.BLUE)
+    plot.addPoints(time, result_dict['Pearson'], Plot.LINE)
+
+    plot.setColor(Color.BLACK)
+    plot.addPoints(time, result_dict['overlap_coefficient'], Plot.LINE)
+
+    plot_window =  plot.show()
+    
