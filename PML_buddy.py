@@ -15,6 +15,7 @@ from ij.gui import Plot as Plot
 from ij.gui import PlotWindow as PlotWindow
 from ij.gui import GenericDialog
 import math
+from ij.measure import CurveFitter as CurveFitter
 
 
 def setupDialog(imp):
@@ -162,14 +163,23 @@ def CalcMandersCoefficients(ip1, ip2):
         
     return Gcoloc/float(Gsum), Rcoloc/float(Rsum)
 
-def CalcPearsonsCoefficient(ip1, ip2):
+def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
     """
     Calculates Pearson's correlation coeficcient, PCC.
-    Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: float r, representing Pearson's coefficient.
+    
+    Aguments:
+        ip1, ip2, two imageProcessors of equal size
+        Th1, Th2, Threshold values, calculates PCC for
+        pixels above These values, defaluts to 0
+        
+    Returns:
+        float R, representing Pearson's coefficient.
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
+
+    if (Th_G > 0) or (Th_R > 0):
+        G,R = thresholder(G, R, Th_G, Th_R)
 
     Gsq = 0
     Rsq = 0
@@ -189,6 +199,42 @@ def CalcPearsonsCoefficient(ip1, ip2):
     if Gsq*Rsq==0:
         return 0
     return num/(math.sqrt(Gsq*Rsq))
+
+def thresholder(Ch1_pix, Ch2_pix, Th1, Th2):
+    """Returns the pixels above thresholds 1 and 2.
+
+    This function is called from inside the CalcPearsonsCoefficient
+    function if you supply it with at least one threshold value.
+
+    Args:
+        Ch1_pix: Array with the channel 1 pixels
+        Ch2_pix: array with the channel 2 pixels
+        Th1: Threshold for channel 1
+        Th2: Threshold for channel 2
+        
+    Returns:
+        A tuple containing the pixels that pass the threshold for 
+        both channel 1 and channel 2.
+        
+        ([ch1],[ch2])
+     """
+    out1 = []
+    out2 = []
+        
+    for g, r in zip(Ch1_pix, Ch2_pix):
+        if (g > Th1) and (r > Th2):
+            out1.append(g)
+            out2.append(r)
+
+    return out1, out2
+    
+def getLinfit(ch1_pix, ch2_pix):
+
+    fitter = CurveFitter(ch1_pix, ch1_pix)
+    fitter.doFit(CurveFitter.STRAIGHT_LINE)
+
+    return fitter
+
     
 #Start by getting the active image window
 imp = WindowManager.getCurrentImage()
