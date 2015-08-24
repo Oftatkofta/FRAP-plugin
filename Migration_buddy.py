@@ -1,4 +1,8 @@
 #import ij.gui
+from javax.vecmath import Point2f
+from java.awt.event import MouseAdapter
+
+
 import ij.gui.Roi as Roi
 import ij.gui.OvalRoi as OvalRoi
 import ij.gui.Overlay as Overlay
@@ -20,18 +24,17 @@ from ij.measure import CurveFitter as CurveFitter
 
 def setupDialog(imp):
 
-    gd = GenericDialog("PML Buddy options")
-    gd.addMessage("Welcome to PML Buddy 0.1, you are analyzing: "+imp.getTitle())
+    gd = GenericDialog("Migration Buddy options")
+    gd.addMessage("You are analyzing: "+imp.getTitle())
     calibration = imp.getCalibration()
 
     if calibration.frameInterval > 0:
         default_interval=calibration.frameInterval
     else:
-        default_interval = 0
+        default_interval = 1
 
     gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
-    gd.addStringField("time unit", "sec",3)
-    gd.addMessage("(optional)")
+    gd.addStringField("time unit", "min",3)
     channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
     gd.addChoice("Channel to track:", channels, channels[1])
 
@@ -60,7 +63,7 @@ def setupDialog(imp):
 
 def roiCenterer(ip, roi, cal):
     """Arguments: ip:ImageProcessor, roi:Region of intrest, cal:calibration of ip.
-    Returns an OvalRoi which is centered on the center of mass of the input roi
+    Returns an OvalRoi of the same size which is centered on the center of mass of the input roi
     applied to the ImageProcessor"""
     
     roi_w=roi.getFloatWidth()
