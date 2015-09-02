@@ -42,7 +42,7 @@ def setupDialog(imp):
     #gd.addNumericField("Diameter of analysis Roi (in pixels):)",20,0)
     gd.addSlider("Mitosis onset at frame:", 1, imp.getNFrames(), imp.getFrame())
     gd.addSlider("Stop tracking at frame:", 1, imp.getNFrames(), 1)
-    #gd.addCheckbox("Display tracking in new window", True)
+    gd.addCheckbox("Do you want to extend an old point list? (shortcuts disabled)", False)
     #gd.addCheckbox("Show plot", False)
     #gd.addCheckbox("Show results table", False)
     #gd.addCheckbox("Show cropped region", True)
@@ -77,6 +77,7 @@ frame_increment = int(gd.getNextNumber())
 #analsis_roi_diameter = int(gd.getNextNumber())
 lastT = int(gd.getNextNumber())
 firstT = int(gd.getNextNumber())
+extendFlag = gd.getNextBoolean()
 
 firstZ, lastZ = 1,1
 
@@ -101,6 +102,9 @@ IJ.run(imp2, "Reverse", "")
 arr = array([imp1, imp2],ImagePlus)
 imp = RGBStackMerge().mergeHyperstacks(arr, False)
 imp.setTitle(title+" Reversed")
+if not extendFlag:
+    IJ.run(imp, "RGB Color", "frames")
+
 imp.show()
 IJ.run(imp, "PointPicker", "")
 
