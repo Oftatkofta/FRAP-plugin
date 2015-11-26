@@ -17,13 +17,13 @@ def setupDialog(imp):
     if calibration.frameInterval > 0:
         default_interval=calibration.frameInterval
     else:
-        default_interval = 0
+        default_interval = 4
 
     gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
     gd.addStringField("time unit",calibration.getTimeUnit(), 3)
     gd.addSlider("Start compacting at frame:", 1, imp.getNFrames(), 1)
     gd.addSlider("Stop compacting at frame:", 1, imp.getNFrames(), imp.getNFrames())
-    gd.addNumericField("Number of frames to project in to one:", 10, 0)  # show 0 decimals
+    gd.addNumericField("Number of frames to project in to one:", 15, 0)  # show 0 decimals
     
     
     gd.addChoice('Method to use for frame projection:', methods_as_strings, methods_as_strings[1])
@@ -38,6 +38,9 @@ def setupDialog(imp):
 #Start by getting the active image window and creating a ZProjector object from it
 imp = WindowManager.getCurrentImage()
 cal = imp.getCalibration()
+nChannels = imp.getNChannels()
+nSlices = 1 #TODO fiz this in case you want to do Z-stacks
+title = imp.getTitle()
 zp = ZProjector(imp)
 
 #Make a dict containg method_name:const_fieled_value pairs for the projection methods
@@ -70,7 +73,8 @@ if ((start_frame != 1) or (stop_frame != imp.getNFrames())):
 #The Z-Projection magic happens here
 total_no_frames_to_project=imp.getNFrames()
 no_frames_per_integral = int(gd.getNextNumber())
-chosen_method=medthod_dict[gd.getNextChoice()]
+method=gd.getNextChoice()
+chosen_method=medthod_dict[method]
 zp.setMethod(chosen_method)
 outstack=imp.createEmptyStack()
 
@@ -79,17 +83,11 @@ for frame in range(1, total_no_frames_to_project, no_frames_per_integral):
     zp.setStopSlice(frame+no_frames_per_integral)
     zp.doProjection()
     outstack.addSlice(zp.getProjection().getProcessor())
-    
-imp2=ImagePlus('out', outstack)
+
+imp2=ImagePlus(title+'_'+method+'_'+str(no_frames_per_integral)+'_frames', outstack)
+nFrames=imp2.getImageStackSize()
+imp2.setDimensions(1, 1, nFrames)
 imp2.show()
     
-
-stack = imp.getImageStack()
-stack_track = imp.createEmptyStack()
-
-title = imp.getTitle()
-n_channels = imp.getNChannels()
-
-
 
 
