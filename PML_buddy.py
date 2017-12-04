@@ -43,7 +43,11 @@ def setupDialog(imp):
     gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
     gd.addStringField("time unit", "sec", 3)
     gd.addMessage("(optional)")
-    channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  #Makes a list with the names of the channels in the imp
+	
+	#Makes a list with the names of the channels in the imp
+    
+    channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]
+	
     
     gd.addChoice("Channel to track:", channels, channels[imp.getChannel()-1]) #defaults to currnet channel
 
@@ -96,7 +100,7 @@ def roiCenterer(ip, roi, cal):
     roi_y = y-roi_h/2
     out_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
-	return out_roi
+    return out_roi
 
 def roiScaler(roi, new_diameter):
     """
@@ -110,19 +114,22 @@ def roiScaler(roi, new_diameter):
 	    an OvalRoi centered on the input roi, bur with a diameter of new_diameter
 	""" 
 	
-    roi_x=roi.getXBase()
-    roi_y=roi.getYBase()
-    roi_w=roi.getFloatWidth()
-    roi_h=roi.getFloatHeight()
+    roi_x = roi.getXBase()
+    roi_y = roi.getYBase()
+    roi_w = roi.getFloatWidth()
+    roi_h = roi.getFloatHeight()
     
-    roi_x=roi_x+roi_w*0.5-new_diameter*0.5
-    roi_y=roi_y+roi_h*0.5-new_diameter*0.5
-    scaled_roi=OvalRoi(roi_x, roi_y, new_diameter, new_diameter)
+    roi_x = roi_x + roi_w * 0.5 - new_diameter * 0.5
+    roi_y = roi_y + roi_h * 0.5 - new_diameter * 0.5
+    
+    scaled_roi = OvalRoi(roi_x, roi_y, new_diameter, new_diameter)
 
     return scaled_roi
     
 def channelStats(ip, channel, roi, resultdict, cal):
     """
+	Records the mean intensity and X/Y positions of the center of mass for the roi
+	  in to the resultsDict.
 	
 	Args:
         ip: ImageProcessor
@@ -136,8 +143,8 @@ def channelStats(ip, channel, roi, resultdict, cal):
     """
     ip.setRoi(roi)
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
-    x=cal.getRawX(stats.xCenterOfMass)
-    y=cal.getRawY(stats.yCenterOfMass)
+    x = cal.getRawX(stats.xCenterOfMass)
+    y = cal.getRawY(stats.yCenterOfMass)
     resultdict['means_ch'+str(channel)].append(stats.mean)
     resultdict['ch'+str(channel)+'x'].append(x)
     resultdict['ch'+str(channel)+'y'].append(y)
@@ -145,13 +152,18 @@ def channelStats(ip, channel, roi, resultdict, cal):
     return ip.crop()
 
 def colocRecorder(ip1, ip2, resultdict):
-    """Arguments:
-    ip1&ip2:ImageProcessors, resultdict:dict
-    Returns: nothing, updates resultdict
     """
-    M=CalcMandersCoefficients(ip1, ip2)
-    resultdict['M1'].append(M[0])
-    resultdict['M2'].append(M[1])
+	Args:
+        ip1: ImageProcessor
+        ip2: ImageProcessor
+		resultdict: dict that stores the results
+    
+	Returns:
+	    nothing, updates resultdict
+    """
+    m = CalcMandersCoefficients(ip1, ip2)
+    resultdict['M1'].append(m[0])
+    resultdict['M2'].append(m[1])
     resultdict['Pearson'].append(CalcPearsonsCoefficient(ip1, ip2))
     resultdict['overlap_coefficient'].append(CalcOverlapCoefficient(ip1, ip2))
 
@@ -161,8 +173,11 @@ def CalcOverlapCoefficient(ip1, ip2):
     """
     Calculates Manders Overlap Coeficcient, MOC, as
     specified in Manders et al. 1993. 
-    Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: float, representing overlap coefficient
+    Args:
+	    ip1, ip2: ImageProcessors of equal size
+    
+	Returns:
+	    float, representing the overlap coefficient
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
@@ -176,7 +191,8 @@ def CalcOverlapCoefficient(ip1, ip2):
 
     if Gsum*Rsum==0:
         return 0
-    return accum/math.sqrt(Gsum*Rsum)
+    
+	return accum/math.sqrt(Gsum*Rsum)
     
 
 def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
@@ -185,11 +201,12 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     
     Thresholds defaults to 0, and as such calculates M1 & M2 as
     specified in Manders et al. (1993). If threshold values are supplied
-    the function returns thresholded M1 & M2, as specified in Costes et al. (2004)
+    the function returns thresholded M1 & M2 values, as specified in
+	Costes et al. (2004)
     
-    Aguments:
+    Args:
         ip1, ip2: two imageProcessors of equal size
-        th_G, th_R: threshold values for ip1 and ip2, respectively
+        th_G, th_R: threshold values for ip1 and ip2, defaults to 0
     
     Returns:
         floats M1, M2, representing Manders coefficients
@@ -202,6 +219,7 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     
     Gcoloc = 0
     Rcoloc = 0
+	
     for g, r in zip(G, R):
          if g > 0 and r > th_R:
              Rcoloc += r
@@ -220,9 +238,9 @@ def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
     """
     Calculates Pearson's correlation coeficcient, PCC.
     
-    Aguments:
-        ip1, ip2, two imageProcessors of equal size
-        Th1, Th2, Threshold values, calculates PCC for
+    Args:
+        ip1, ip2: ImageProcessors of equal size
+        Th1, Th2: Threshold values, calculates PCC for
         pixels above These values, defaluts to 0
         
     Returns:
@@ -237,8 +255,8 @@ def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
     Gsq = 0
     Rsq = 0
     
-    Gavg=sum(G)/float(len(G))
-    Ravg=sum(R)/float(len(R))
+    Gavg=sum(G)/float(len(G)) #average pixel value in ip1
+    Ravg=sum(R)/float(len(R)) #average pixel value in ip2
 
     num=0
     
@@ -290,15 +308,19 @@ def getLinfit(ch1_pix, ch2_pix):
 
     
 # Start by getting the ImagePlus object in the active ImageJ window
+
 imp = WindowManager.getCurrentImage()
 
 # Store the Calibration object from the ImagePlus object in the variable cal
+
 cal = imp.getCalibration()
 
 # Run the setupDialog
+
 gd = setupDialog(imp)  	
 
 # Read out the options from the setupDialog
+
 frame_interval = gd.getNextNumber()
 time_unit = gd.getNextString()
 channel_to_track = int(gd.getNextChoice())
@@ -309,6 +331,7 @@ start_frame = int(gd.getNextNumber())
 stop_frame = int(gd.getNextNumber())
 
 # Sanity check on start/stop frames
+
 if (start_frame > stop_frame):
     IJ.showMessage("Start frame > Stop frame!")
     raise Exception("Start frame > Stop frame!")
@@ -316,6 +339,7 @@ if (start_frame > stop_frame):
 no_frames_tracked=(stop_frame-start_frame)+1
 
 # Setting flags
+
 showTrackFlag=gd.getNextBoolean()
 showPlotFlag=gd.getNextBoolean()
 showResultsFlag=gd.getNextBoolean()
@@ -325,7 +349,8 @@ colocalizationFlag=gd.getNextBoolean()
 showColPlotFlag=gd.getNextBoolean()
 
     
-# Set the frame interval in the calibration and store it back to the ImageProcessor    
+# Set the frame interval in the calibration and store it back to the ImageProcessor
+
 cal.frameInterval = frame_interval
 cal.setTimeUnit(time_unit)
 imp.setCalibration(cal)
