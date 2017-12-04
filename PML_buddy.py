@@ -138,22 +138,34 @@ def CalcOverlapCoefficient(ip1, ip2):
     return accum/math.sqrt(Gsum*Rsum)
     
 
-def CalcMandersCoefficients(ip1, ip2):
+def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     """
-    Calculates Mandlers colocalization coefficients, MCC, , as
-    specified in Manders et al. 1993.
-    Aguments: ip1, ip2, two imageProcessors of equal size
-    Returns: floats M1, M2, representing Manders coefficients
+    Calculates thresholded Mandlers colocalization coefficients, MCC.
+    
+    Thresholds defaults to 0, and as such calculates M1 & M2 as
+    specified in Manders et al. (1993). If threshold values are supplied
+    the function returns thresholded M1 & M2, as specified in Costes et al. (2004)
+    
+    Aguments:
+        ip1, ip2: two imageProcessors of equal size
+        th_G, th_R: threshold values for ip1 and ip2, respectively
+    
+    Returns:
+        floats M1, M2, representing Manders coefficients
     """
+    ip1 = ip1.convertToFloatProcessor()
+    ip2 = ip2.convertToFloatProcessor()
     G = ip1.getPixels()
     R = ip2.getPixels()
+
+    
     Gcoloc = 0
     Rcoloc = 0
-    for i in range(len(G)):
-         if G[i]>0:
-             Rcoloc+=R[i]
-         if R[i]>0:
-             Gcoloc+=G[i]
+    for g, r in zip(G, R):
+         if g > 0 and r > th_R:
+             Rcoloc += r
+         if r > 0 and g > th_G:
+             Gcoloc += g
          
     Gsum = sum(G)
     Rsum = sum(R)
@@ -406,7 +418,7 @@ if showPlotFlag:
     plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
 
     plot.setColor(Color.RED)
-    plot.addPoints(time, result_dict['means_ch2'], Plot.LINE)
+    plot.addPoints(time, (result_dict['means_ch1']/result_dict['means_ch2']), Plot.LINE)
  
     plot.setColor(Color.black)
 
