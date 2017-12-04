@@ -18,10 +18,21 @@ import math
 from ij.measure import CurveFitter as CurveFitter
 
 
+
 def setupDialog(imp):
+    """
+    Creates a GenericDialog object where the relevant settings for the plugin can be accessed
+      and set through a convenient GUI
+
+    Args:
+        imp: ij.ImagePlus object, usually the currently active window.
+
+    Returns:
+        A GenericDialog Object containig all the desired settings for the analysis
+    """
 
     gd = GenericDialog("PML Buddy options")
-    gd.addMessage("Welcome to PML Buddy 0.1, you are analyzing: "+imp.getTitle())
+    gd.addMessage("Welcome to PML Buddy, you are analyzing: "+imp.getTitle())
     calibration = imp.getCalibration()
 
     if calibration.frameInterval > 0:
@@ -30,53 +41,75 @@ def setupDialog(imp):
         default_interval = 0
 
     gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
-    gd.addStringField("time unit", "sec",3)
+    gd.addStringField("time unit", "sec", 3)
     gd.addMessage("(optional)")
-    channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
-    gd.addChoice("Channel to track:", channels, channels[1])
+    channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  #Makes a list with the names of the channels in the imp
+    
+    gd.addChoice("Channel to track:", channels, channels[imp.getChannel()-1]) #defaults to currnet channel
 
-    roichoises = ['Current active Roi','First Roi in RoiManager']    
-    gd.addChoice('Roi to use for tracking: (not implemented yet)', roichoises, roichoises[1])
+    roichoises = ['Currently active Roi','First Roi in RoiManager']    
+    gd.addChoice('Roi to use for tracking:', roichoises, roichoises[0])
     
     gd.addNumericField("Number of Roi centerings to perform per frame (3-6 is generally ok):", 6, 0)
     gd.addNumericField("Diameter of analysis Roi (in pixels):)",20,0)
     gd.addSlider("Start tracking at frame:", 1, imp.getNFrames(), imp.getFrame())
     gd.addSlider("Stop tracking at frame:", 1, imp.getNFrames(), imp.getNFrames())
     gd.addCheckbox("Display tracking in new window", True)
-    gd.addCheckbox("Show plot", False)
+    gd.addCheckbox("Show intensity plot", False)
     gd.addCheckbox("Show results table", False)
-    gd.addCheckbox("Show cropped region", True)
-    gd.addCheckbox("Use scaled analysis ROI", True)
+    gd.addCheckbox("Show cropped region", False)
+    gd.addCheckbox("Use scaled analysis ROI", False)
     gd.addCheckbox("Do colocalization analysis on Ch1 & Ch2", True)
     gd.addCheckbox("Plot Colocalization coefficients", False)
     
     gd.showDialog()  
 	  
-    if gd.wasCanceled():  
-        IJ.log("User canceled dialog!")  
+    if gd.wasCanceled(): #TODO proper exception handling
+        IJ.log("User canceled dialog!")
+        raise Exception("User canceled dialog!")
         return
 
     return gd
 
 def roiCenterer(ip, roi, cal):
-    """Arguments: ip:ImageProcessor, roi:Region of intrest, cal:calibration of ip.
-    Returns an OvalRoi which is centered on the center of mass of the input roi
-    applied to the ImageProcessor"""
+    """
+	Centers the given roi on the center of mass inside the roi
+	
+	Args:
+	    ip: ImageProcessor
+		roi: Region of intrest
+		cal: Calibration of the ip
+		
+    Returns:
+	    an OvalRoi object which is centered on the center of mass of the input roi
+          applied to the ImageProcessor
+		  
+	"""
     
-    roi_w=roi.getFloatWidth()
-    roi_h=roi.getFloatHeight()
+    roi_w = roi.getFloatWidth()
+    roi_h = roi.getFloatHeight()
     ip.setRoi(roi)
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
-    x=cal.getRawX(stats.xCenterOfMass)
-    y=cal.getRawY(stats.yCenterOfMass)
-    roi_x=x-roi_w/2
-    roi_y=y-roi_h/2
-    roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
-    return roi
+    x = cal.getRawX(stats.xCenterOfMass)
+    y = cal.getRawY(stats.yCenterOfMass)
+    roi_x = x-roi_w/2
+    roi_y = y-roi_h/2
+    out_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
+    
+	return out_roi
 
 def roiScaler(roi, new_diameter):
-    """Agruments: roi: Region of intrest, new_diameter: returned roi diameter
-    Returns a new OvalRoi centered on the input roi diameter""" 
+    """
+	Used if the tracking ROI needs to be bigger than the analysis ROI due to drift
+	
+	Agrs:
+	    roi: Region of intrest
+		new_diameter: diameter of the returned roi
+    
+	Returns:
+	    an OvalRoi centered on the input roi, bur with a diameter of new_diameter
+	""" 
+	
     roi_x=roi.getXBase()
     roi_y=roi.getYBase()
     roi_w=roi.getFloatWidth()
@@ -89,9 +122,17 @@ def roiScaler(roi, new_diameter):
     return scaled_roi
     
 def channelStats(ip, channel, roi, resultdict, cal):
-    """Arguments:
-    ip:ImageProcessor, channel: int, roi:roi, resultdict:dict, cal:calibration
-    Returns: ip, cropped to roi
+    """
+	
+	Args:
+        ip: ImageProcessor
+		channel: int channel number to analyze
+		roi: roi to analyze
+		resultdict: a dict storing the results from the analysis, updated in place
+		cal : calibration corresponding to the supplied ImageProcessor ip
+    
+	Returns:
+	    ImageProcessor, cropped from ip to the roi
     """
     ip.setRoi(roi)
     stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
@@ -248,29 +289,33 @@ def getLinfit(ch1_pix, ch2_pix):
     return fitter
 
     
-#Start by getting the active image window
+# Start by getting the ImagePlus object in the active ImageJ window
 imp = WindowManager.getCurrentImage()
+
+# Store the Calibration object from the ImagePlus object in the variable cal
 cal = imp.getCalibration()
 
-# Run the setupDialog and read out the options
-gd=setupDialog(imp)  	
+# Run the setupDialog
+gd = setupDialog(imp)  	
 
+# Read out the options from the setupDialog
 frame_interval = gd.getNextNumber()
 time_unit = gd.getNextString()
 channel_to_track = int(gd.getNextChoice())
-roi_to_use = gd.getNextChoice()  
+roi_to_use = gd.getNextChoiceIndex() #0 for current, 1 for first in ROImanager
 no_of_centerings = int(gd.getNextNumber())
 analsis_roi_diameter = int(gd.getNextNumber())
 start_frame = int(gd.getNextNumber())
 stop_frame = int(gd.getNextNumber())
 
+# Sanity check on start/stop frames
 if (start_frame > stop_frame):
     IJ.showMessage("Start frame > Stop frame!")
-    raise RuntimeException("Start frame > Stop frame!")
+    raise Exception("Start frame > Stop frame!")
 
 no_frames_tracked=(stop_frame-start_frame)+1
 
-#Setting flags
+# Setting flags
 showTrackFlag=gd.getNextBoolean()
 showPlotFlag=gd.getNextBoolean()
 showResultsFlag=gd.getNextBoolean()
@@ -278,42 +323,48 @@ showCropFlag=gd.getNextBoolean()
 analysisRoiFlag=gd.getNextBoolean()
 colocalizationFlag=gd.getNextBoolean()
 showColPlotFlag=gd.getNextBoolean()
+
     
-#Set the frame interval in calibration
-    
+# Set the frame interval in the calibration and store it back to the ImageProcessor    
 cal.frameInterval = frame_interval
 cal.setTimeUnit(time_unit)
 imp.setCalibration(cal)
     
-
+# ImageStack class represents an expandable array of imgaes
 stack = imp.getImageStack()
-stack_track = imp.createEmptyStack()
+
+# Creates an empty stack with the same dimensions as imp
+stack_track = imp.createEmptyStack() 
 
 title = imp.getTitle()
 n_channels = imp.getNChannels()
-stack_to_track=1
+stack_to_track = 1
 
 
 
-# Get the ROIs
-roi_manager = RoiManager.getInstance()
-roi_list    = roi_manager.getRoisAsArray()
+# Get the chosen tracking ROI
+if (roi_to_use == 0) and (imp.getRoi() is not None): #use currently active ROI if it exists
+    roi_1 = imp.getRoi()
 
-# We will use the first ROI in the Roi manager for now.
-roi_1 = roi_list[0];
+else: #TODO proper exception handling in case there are no ROIs
+    roi_manager = RoiManager.getInstance()
+    roi_list    = roi_manager.getRoisAsArray()
+    roi_1 = roi_list[0]
 
+# Get position and size of ROI
 roi_x=roi_1.getXBase()
 roi_y=roi_1.getYBase()
 roi_w=roi_1.getFloatWidth()
 roi_h=roi_1.getFloatHeight()
 
-if analysisRoiFlag:
+# In case we are analyzing a smaller region than we track
+if analysisRoiFlag: 
     stack_crop = ImageStack(int(analsis_roi_diameter), int(analsis_roi_diameter))
 else:
     stack_crop = ImageStack(int(roi_w), int(roi_h))
 
 
-#Create a dictionary to keep track of results
+# A dictionary to keep track of results
 result_dict={}
 result_keys=['means_ch1','means_ch2','ch1x','ch1y','ch2x','ch2y']
     
@@ -323,12 +374,12 @@ if colocalizationFlag:
         result_keys.append(extra)
     
 for key in result_keys:
-    result_dict[key]=[]
+    result_dict[key]=[] # each key holds a list of results
   
 
 #loop through the frames that you want to track
 for frame in range(start_frame, stop_frame+1):
-    # Get the imageProcessor of the channel to track at the current frame
+    # Get the ImageProcessor of the channel to track at the current frame
     track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,frame))
     track_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
@@ -418,7 +469,7 @@ if showPlotFlag:
     plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
 
     plot.setColor(Color.RED)
-    plot.addPoints(time, (result_dict['means_ch1']/result_dict['means_ch2']), Plot.LINE)
+    plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
  
     plot.setColor(Color.black)
 
