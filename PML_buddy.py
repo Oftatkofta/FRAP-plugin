@@ -1,8 +1,31 @@
-#import ij.gui
+# This file is ment to be placed in the /plugins/ directory of FIJI and is ment
+# to be run from within the plugins menu.
+#
+# Copyright 2016 Jens Eriksson 
+
+# Permission is hereby granted, free of charge, to any person obtaining a 
+# copy of this software and associated documentation files (the 
+# "Software"), to deal in the Software without restriction, including 
+# without limitation the rights to use, copy, modify, merge, publish, 
+# distribute, sublicense, and/or sell copies of the Software, and to 
+# permit persons to whom the Software is furnished to do so, subject to 
+# the following conditions: 
+
+# The above copyright notice and this permission notice shall be included 
+# in all copies or substantial portions of the Software. 
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+
+
 import ij.gui.Roi as Roi
 import ij.gui.OvalRoi as OvalRoi
 import ij.gui.Overlay as Overlay
-#import ij.measure
 from ij.measure import ResultsTable
 from ij import WindowManager as WindowManager
 from ij.plugin.frame import RoiManager as RoiManager
@@ -21,14 +44,15 @@ from ij.measure import CurveFitter as CurveFitter
 
 def setupDialog(imp):
     """
-    Creates a GenericDialog object where the relevant settings for the plugin can be accessed
-      and set through a convenient GUI
+    Creates a GenericDialog object where the relevant settings for the plugin
+    can be accessed and set through a convenient GUI
 
     Args:
         imp: ij.ImagePlus object, usually the currently active window.
 
     Returns:
-        A GenericDialog Object containig all the desired settings for the analysis
+        A GenericDialog Object containig all the desired settings for the
+        analysis
     """
 
     gd = GenericDialog("PML Buddy options")
@@ -36,28 +60,34 @@ def setupDialog(imp):
     calibration = imp.getCalibration()
 
     if calibration.frameInterval > 0:
-        default_interval=calibration.frameInterval
+        default_interval = calibration.frameInterval
+        default_timeunit = calibration.getTimeUnit()
     else:
         default_interval = 0
-
-    gd.addNumericField("Frame interval:", default_interval, 2)  # show 2 decimals    
-    gd.addStringField("time unit", "sec", 3)
-    gd.addMessage("(optional)")
-	
-	#Makes a list with the names of the channels in the imp
+        default_timeunit = None
+        
+    gd.addNumericField("Frame interval:", default_interval, 2)  #show 2 decimals    
+    gd.addStringField("time unit", default_interval, 3)
+    gd.addMessage("(optional)") #providing a unit is optional
+    
+    #Makes a list with the names of the channels in the imp
     
     channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]
-	
     
-    gd.addChoice("Channel to track:", channels, channels[imp.getChannel()-1]) #defaults to currnet channel
+    #defaults to currnet active channel
+    
+    gd.addChoice("Channel to track:", channels, channels[imp.getChannel()-1]) 
 
     roichoises = ['Currently active Roi','First Roi in RoiManager']    
     gd.addChoice('Roi to use for tracking:', roichoises, roichoises[0])
     
-    gd.addNumericField("Number of Roi centerings to perform per frame (3-6 is generally ok):", 6, 0)
+    gd.addNumericField("Nr. of Roi centerings to do per frame:", 6, 0)
     gd.addNumericField("Diameter of analysis Roi (in pixels):)",20,0)
-    gd.addSlider("Start tracking at frame:", 1, imp.getNFrames(), imp.getFrame())
-    gd.addSlider("Stop tracking at frame:", 1, imp.getNFrames(), imp.getNFrames())
+    gd.addSlider("Start tracking at frame:", 1, imp.getNFrames(),
+                 imp.getFrame())
+    gd.addSlider("Stop tracking at frame:", 1, imp.getNFrames(),
+                 imp.getNFrames())
+    
     gd.addCheckbox("Display tracking in new window", True)
     gd.addCheckbox("Show intensity plot", False)
     gd.addCheckbox("Show results table", False)
@@ -67,7 +97,7 @@ def setupDialog(imp):
     gd.addCheckbox("Plot Colocalization coefficients", False)
     
     gd.showDialog()  
-	  
+      
     if gd.wasCanceled(): #TODO proper exception handling
         IJ.log("User canceled dialog!")
         raise Exception("User canceled dialog!")
@@ -77,43 +107,46 @@ def setupDialog(imp):
 
 def roiCenterer(ip, roi, cal):
     """
-	Centers the given roi on the center of mass inside the roi
-	
-	Args:
-	    ip: ImageProcessor
-		roi: Region of intrest
-		cal: Calibration of the ip
-		
+    Centers the given roi on the center of mass inside the roi
+    
+    Args:
+        ip: ImageProcessor
+        roi: Region of intrest
+        cal: Calibration of the ip
+        
     Returns:
-	    an OvalRoi object which is centered on the center of mass of the input roi
-          applied to the ImageProcessor
-		  
-	"""
+        an OvalRoi object which is centered on the center of mass of the input
+          roi applied to the ImageProcessor
+          
+    """
     
     roi_w = roi.getFloatWidth()
     roi_h = roi.getFloatHeight()
     ip.setRoi(roi)
-    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
-    x = cal.getRawX(stats.xCenterOfMass)
+    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS,
+                                          cal)
+        x = cal.getRawX(stats.xCenterOfMass)
     y = cal.getRawY(stats.yCenterOfMass)
     roi_x = x-roi_w/2
     roi_y = y-roi_h/2
+    
     out_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     return out_roi
 
 def roiScaler(roi, new_diameter):
     """
-	Used if the tracking ROI needs to be bigger than the analysis ROI due to drift
-	
-	Agrs:
-	    roi: Region of intrest
-		new_diameter: diameter of the returned roi
+    Used if the tracking ROI has a hard time locking on to the object and
+      needs therefore needs to be bigger than the analysis ROI.
     
-	Returns:
-	    an OvalRoi centered on the input roi, bur with a diameter of new_diameter
-	""" 
-	
+    Agrs:
+        roi: Region of intrest
+        new_diameter: diameter of the returned roi
+    
+    Returns:
+        OvalRoi centered on the input roi, but with a diameter of new_diameter
+    """ 
+    
     roi_x = roi.getXBase()
     roi_y = roi.getYBase()
     roi_w = roi.getFloatWidth()
@@ -128,23 +161,26 @@ def roiScaler(roi, new_diameter):
     
 def channelStats(ip, channel, roi, resultdict, cal):
     """
-	Records the mean intensity and X/Y positions of the center of mass for the roi
-	  in to the resultsDict.
-	
-	Args:
-        ip: ImageProcessor
-		channel: int channel number to analyze
-		roi: roi to analyze
-		resultdict: a dict storing the results from the analysis, updated in place
-		cal : calibration corresponding to the supplied ImageProcessor ip
+    Records the mean intensity and X/Y positions of the center of mass for the
+      roi in to the resultsDict.
     
-	Returns:
-	    ImageProcessor, cropped from ip to the roi
+    Args:
+        ip: ImageProcessor
+        channel: int channel number to analyze
+        roi: roi to analyze
+        resultdict: dict storing the results from the analysis, updated in place
+        cal : calibration corresponding to the supplied ImageProcessor ip
+    
+    Returns:
+        ImageProcessor, cropped from ip to the roi
     """
     ip.setRoi(roi)
-    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS, cal)
+    
+    stats = ImageStatistics.getStatistics(ip, ImageStatistics.CENTER_OF_MASS,
+                                          cal)
     x = cal.getRawX(stats.xCenterOfMass)
     y = cal.getRawY(stats.yCenterOfMass)
+    
     resultdict['means_ch'+str(channel)].append(stats.mean)
     resultdict['ch'+str(channel)+'x'].append(x)
     resultdict['ch'+str(channel)+'y'].append(y)
@@ -153,13 +189,13 @@ def channelStats(ip, channel, roi, resultdict, cal):
 
 def colocRecorder(ip1, ip2, resultdict):
     """
-	Args:
+    Args:
         ip1: ImageProcessor
         ip2: ImageProcessor
-		resultdict: dict that stores the results
+        resultdict: dict that stores the results
     
-	Returns:
-	    nothing, updates resultdict
+    Returns:
+        nothing, updates resultdict
     """
     m = CalcMandersCoefficients(ip1, ip2)
     resultdict['M1'].append(m[0])
@@ -172,27 +208,29 @@ def colocRecorder(ip1, ip2, resultdict):
 def CalcOverlapCoefficient(ip1, ip2):
     """
     Calculates Manders Overlap Coeficcient, MOC, as
-    specified in Manders et al. 1993. 
+    specified in equation 2 in Manders et al. 1993. 
     Args:
-	    ip1, ip2: ImageProcessors of equal size
+        ip1, ip2: ImageProcessors of equal size
     
-	Returns:
-	    float, representing the overlap coefficient
+    Returns:
+        float, representing the overlap coefficient
     """
     G = ip1.getPixels()
     R = ip2.getPixels()
+    
     accum = 0
     Gsum = 0
     Rsum = 0
+
     for i in range(len(G)):
-         accum+=G[i]*R[i]
+         accum += G[i]*R[i]
          Gsum += G[i]**2
          Rsum += R[i]**2
 
     if Gsum*Rsum==0:
         return 0
     
-	return accum/math.sqrt(Gsum*Rsum)
+    return accum/math.sqrt(Gsum*Rsum)
     
 
 def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
@@ -202,7 +240,7 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     Thresholds defaults to 0, and as such calculates M1 & M2 as
     specified in Manders et al. (1993). If threshold values are supplied
     the function returns thresholded M1 & M2 values, as specified in
-	Costes et al. (2004)
+    Costes et al. (2004)
     
     Args:
         ip1, ip2: two imageProcessors of equal size
@@ -219,7 +257,7 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     
     Gcoloc = 0
     Rcoloc = 0
-	
+    
     for g, r in zip(G, R):
          if g > 0 and r > th_R:
              Rcoloc += r
@@ -236,7 +274,12 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
 
 def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
     """
-    Calculates Pearson's correlation coeficcient, PCC.
+    Calculates Pearson's correlation coeficcient, PCC. PCC describes the degree
+    of overlap between two patterns. It provides information about the
+    similarity of shape without regard to the average intensity of the signals.
+    PCC varies from -1 to 1. Negative values are hard to interpret when degree
+    of overlap is the quantity measured.
+    
     
     Args:
         ip1, ip2: ImageProcessors of equal size
@@ -348,8 +391,8 @@ analysisRoiFlag=gd.getNextBoolean()
 colocalizationFlag=gd.getNextBoolean()
 showColPlotFlag=gd.getNextBoolean()
 
-    
-# Set the frame interval in the calibration and store it back to the ImageProcessor
+# Set the frame interval in the calibration and store it back to the
+# ImageProcessor
 
 cal.frameInterval = frame_interval
 cal.setTimeUnit(time_unit)
@@ -363,12 +406,12 @@ stack_track = imp.createEmptyStack()
 
 title = imp.getTitle()
 n_channels = imp.getNChannels()
-stack_to_track = 1
+slice_to_track = 1 #Z-stack tracking is not implemented
 
 
 
 # Get the chosen tracking ROI
-if (roi_to_use == 0) and (imp.getRoi() is not None): #use currently active ROI if it exists
+if (roi_to_use == 0) and (imp.getRoi() is not None):
     roi_1 = imp.getRoi()
 
 else: #TODO proper exception handling in case there are no ROIs
@@ -384,7 +427,8 @@ roi_h=roi_1.getFloatHeight()
 
 # In case we are analyzing a smaller region than we track
 if analysisRoiFlag: 
-    stack_crop = ImageStack(int(analsis_roi_diameter), int(analsis_roi_diameter))
+    stack_crop = ImageStack(int(analsis_roi_diameter),
+                            int(analsis_roi_diameter))
 else:
     stack_crop = ImageStack(int(roi_w), int(roi_h))
 
@@ -399,13 +443,15 @@ if colocalizationFlag:
         result_keys.append(extra)
     
 for key in result_keys:
-    result_dict[key]=[] # each key holds a list of results
-  
+    # each key holds a list of results
+    result_dict[key]=[]    
 
 #loop through the frames that you want to track
 for frame in range(start_frame, stop_frame+1):
     # Get the ImageProcessor of the channel to track at the current frame
-    track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,stack_to_track,frame))
+    track_ip = stack.getProcessor(imp.getStackIndex(channel_to_track,
+                                  slice_to_track, frame))
+    
     track_roi = OvalRoi(roi_x, roi_y, roi_w, roi_h)
     
     #Do the Roi centering the desired number of times
@@ -423,10 +469,10 @@ for frame in range(start_frame, stop_frame+1):
     
     #Get Channel 1&2 IPs and apply the centered roi with the desired diameter
     
-    ip1 = stack.getProcessor(imp.getStackIndex(1,stack_to_track,frame))
+    ip1 = stack.getProcessor(imp.getStackIndex(1, slice_to_track, frame))
     ip1_crop=channelStats(ip1, 1, analysis_roi, result_dict, cal)
     
-    ip2 = stack.getProcessor(imp.getStackIndex(2,stack_to_track,frame))
+    ip2 = stack.getProcessor(imp.getStackIndex(2,slice_to_track,frame))
     ip2_crop=channelStats(ip2, 2, analysis_roi, result_dict, cal)
 
     if colocalizationFlag:
@@ -455,7 +501,9 @@ if showTrackFlag:
     imp_track.show()
 
 if showCropFlag:
-    imp_crop = IJ.createHyperStack(title+"_analysis_crop", int(roi_w), int(roi_h), n_channels, 1, no_frames_tracked, imp.getBitDepth())
+    imp_crop = IJ.createHyperStack(title+"_analysis_crop", int(roi_w),
+                                   int(roi_h), n_channels, 1, no_frames_tracked,
+                                   imp.getBitDepth())
     imp_crop.setStack(stack_crop)
     imp_crop.setCalibration(cal)
     imp_crop.show()
@@ -472,21 +520,26 @@ if showResultsFlag:
     rt.show(title)
 
 if showPlotFlag:
-    maxc1=max(result_dict['means_ch1'])
-    maxc2=max(result_dict['means_ch2'])
-    if maxc1>maxc2:
+    maxc1 = max(result_dict['means_ch1'])
+    maxc2 = max(result_dict['means_ch2'])
+    
+    if maxc1 > maxc2:
         plotlim = maxc1
+    
     else:
         plotlim = maxc2
 
     if frame_interval > 0:
         time = [frame_interval*frame for frame in range(0,no_frames_tracked)]
         xlab="Time ("+time_unit+")"
+    
     else:
         time=range(0,no_frames_tracked)
         xlab="frame"
     
-    plot = Plot("Traced intensity curve for " + imp.getTitle(), xlab, "Mean intensity", [], [])
+    plot = Plot("Traced intensity curve for " + imp.getTitle(), xlab,
+                "Mean intensity", [], [])
+    
     plot.setLimits(1, max(time), 0, plotlim );
     plot.setLineWidth(2)
     
@@ -494,10 +547,10 @@ if showPlotFlag:
     plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
 
     plot.setColor(Color.RED)
-    plot.addPoints(time, result_dict['means_ch1'], Plot.LINE)
+    plot.addPoints(time, result_dict['means_ch2'], Plot.LINE)
  
     plot.setColor(Color.black)
-
+    plot.addLegend("Channel 1\nChannel 2")
     plot_window =  plot.show()
 
 if showColPlotFlag:
@@ -509,7 +562,9 @@ if showColPlotFlag:
         time=range(0,no_frames_tracked)
         xlab="frame"
 
-    plot = Plot("Correlationcoefficients over time for " + imp.getTitle(), xlab, "Correlation coefficient", [], [])
+    plot = Plot("Correlationcoefficients over time for " + imp.getTitle(),
+                xlab, "Correlation coefficient", [], [])
+    
     plot.setLimits(1, max(time), -0.5, 3.2 );
     plot.setLineWidth(2)
     
@@ -524,6 +579,8 @@ if showColPlotFlag:
 
     plot.setColor(Color.BLACK)
     plot.addPoints(time, result_dict['overlap_coefficient'], Plot.LINE)
+    
+    plot.addLegend("M1 (Ch1)\nM2 (Ch2)\nPearson\nOverlap coef")
 
     plot_window =  plot.show()
     
