@@ -67,7 +67,7 @@ def setupDialog(imp):
         default_timeunit = None
         
     gd.addNumericField("Frame interval:", default_interval, 2)  #show 2 decimals    
-    gd.addStringField("time unit", default_interval, 3)
+    gd.addStringField("time unit", default_timeunit, 3)
     gd.addMessage("(optional)") #providing a unit is optional
     
     #Makes a list with the names of the channels in the imp
@@ -197,15 +197,15 @@ def colocRecorder(ip1, ip2, resultdict):
     Returns:
         nothing, updates resultdict
     """
-    m = CalcMandersCoefficients(ip1, ip2)
+    m = calcMandersCoefficients(ip1, ip2)
     resultdict['M1'].append(m[0])
     resultdict['M2'].append(m[1])
-    resultdict['Pearson'].append(CalcPearsonsCoefficient(ip1, ip2))
-    resultdict['overlap_coefficient'].append(CalcOverlapCoefficient(ip1, ip2))
+    resultdict['Pearson'].append(calcPearsonsCoefficient(ip1, ip2))
+    resultdict['overlap_coefficient'].append(calcOverlapCoefficient(ip1, ip2))
 
     return
     
-def CalcOverlapCoefficient(ip1, ip2):
+def calcOverlapCoefficient(ip1, ip2):
     """
     Calculates Manders Overlap Coeficcient, MOC, as
     specified in equation 2 in Manders et al. 1993. 
@@ -233,7 +233,7 @@ def CalcOverlapCoefficient(ip1, ip2):
     return accum/math.sqrt(Gsum*Rsum)
     
 
-def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
+def calcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
     """
     Calculates thresholded Mandlers colocalization coefficients, MCC.
     
@@ -272,7 +272,7 @@ def CalcMandersCoefficients(ip1, ip2, th_G=0, th_R=0):
         
     return Gcoloc/float(Gsum), Rcoloc/float(Rsum)
 
-def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
+def calcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
     """
     Calculates Pearson's correlation coeficcient, PCC. PCC describes the degree
     of overlap between two patterns. It provides information about the
@@ -317,7 +317,7 @@ def CalcPearsonsCoefficient(ip1, ip2, Th_G=0, Th_R=0):
 def thresholder(Ch1_pix, Ch2_pix, Th1, Th2):
     """Returns the pixels above thresholds 1 and 2.
 
-    This function is called from inside the CalcPearsonsCoefficient
+    This function is called from inside the calcPearsonsCoefficient
     function if you supply it with at least one threshold value.
 
     Args:
@@ -342,8 +342,13 @@ def thresholder(Ch1_pix, Ch2_pix, Th1, Th2):
 
     return out1, out2
     
-def getLinfit(ch1_pix, ch2_pix):
-
+def getLinfit(ch1_pix, ch2_pix): ##TODO implement this
+    
+    """
+    Calculates the Costes threshold, T, as defined in Costes et al. (2004)
+    The a and b constnants from the linear least square fit of Ch1 & Ch2 pixels
+    is used to calculate T for ch2.
+    """
     fitter = CurveFitter(ch1_pix, ch1_pix)
     fitter.doFit(CurveFitter.STRAIGHT_LINE)
 
