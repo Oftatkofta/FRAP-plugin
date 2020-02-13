@@ -1,9 +1,13 @@
 #@String(label="Please fill the ROI-Manager with meaning") name
 #@ Float(label="Depth of cortex (um)", required=true, value=10, stepSize=0.1) band_thickness
 
+"""
+A plugin that measures the intenisies of equally thick bands around organoids.
 
+
+"""
 from ij import IJ
-from ij.gui import Roi
+from ij.gui import Roi, Overlay
 from ij.plugin.frame import RoiManager
 from ij.plugin.filter import Analyzer
 from ij.measure import ResultsTable
@@ -11,38 +15,37 @@ from ij.measure import ResultsTable
 import math
 
 def getCurrentRoiMean(imp, channel):
+    #Returns the mean of the rurrent roi active in imp for channel
     
     imp.setC(channel)
     return imp.getStatistics().mean
     
 def getBandMean(imp, roi, band_thickness, channel):
-
+    """
+    Returns the mean of a band_thickness thick band
+    around the supplied roi, positive value for growing
+    the band, negative for shrinking.
+    """
     imp.setRoi(roi)    
     strt = getCurrentRoiMean(imp, channel)
     
     IJ.run("Enlarge...", "enlarge="+str(band_thickness))
     roi_o = imp.getRoi()
     out = getCurrentRoiMean(imp, channel)
- 
-    
-    return(out-strt)
 
-def getRelativeBandMean(imp, roi, band_thickness, channel):
+    #Are we growing or shrinking the ROI?
+    if band_thikness > 0:
+        return(out-strt)
+    else:
+        return(strt-out)
 
-    imp.setRoi(roi)    
-    strt = getCurrentRoiMean(imp, channel)
-    
-    IJ.run("Enlarge...", "enlarge="+str((0+band_thickness)))
-    roi_o = imp.getRoi()
-    out = getCurrentRoiMean(imp, channel)
- 
-    
-    return(out-strt)
+  
 
-def getOutsideBand(imp, contourRoi, band_thickness):
+def getOutsideBand(imp, contourRoi, band_thickness, addToRm = False):
     """
-    Returns a ROI consisting of controurRoi expanded by band_thicness
-    minus (XOR) contourRoi.
+    Returns a ROI consisting of controurRoi expanded by band_thickness
+    minus (XOR) contourRoi. Roi is named: "Outside band frame NN".
+    addToRm specifies if ROI is to be added to the RoiManager.
     """
     _rm = RoiManager(True) #secret RoiManager
     _rm.addRoi(contourRoi)
@@ -58,13 +61,17 @@ def getOutsideBand(imp, contourRoi, band_thickness):
     _rm.runCommand('XOR')
     roi_o = imp.getRoi()
     roi_o.setName("Outside band frame "+str(contourRoi.getTPosition()))
+
+    if addToRm:
+        RoiManager.getRoiManager().addRoi(roi_o)
     
     return roi_o
 
-def getCortexBand(imp, contourRoi, band_thickness):
+def getCortexBand(imp, contourRoi, band_thickness, addToRm = False):
     """
     Returns a ROI consisting of controurRoi minus contourRoi shrunk
-    by band_thicness.
+    by band_thicness. addToRm specifies if ROI is to be added to the
+    RoiManager.
     """
     _rm = RoiManager(True) #secret RoiManager
     _rm.addRoi(contourRoi)
@@ -82,13 +89,17 @@ def getCortexBand(imp, contourRoi, band_thickness):
     roi_o = imp.getRoi()
     roi_o.setName("Cortex band frame "+str(contourRoi.getTPosition()))
 
+    if addToRm:
+        RoiManager.getRoiManager().addRoi(roi_o)
+        
     return roi_o
 
     
-def getInside(imp, contourRoi, band_thickness):
+def getInside(imp, contourRoi, band_thickness, addToRm=False):
     """
     Returns a ROI consisting of controurRoi shrunk
-    by band_thicness.
+    by band_thicness. addToRm specifies if ROI is to be added to the
+    RoiManager.
     """
     imp.setRoi(contourRoi)
 
@@ -97,7 +108,11 @@ def getInside(imp, contourRoi, band_thickness):
 
     roi_o = imp.getRoi()
     roi_o.setName("Inside frame "+str(contourRoi.getTPosition()))
+    roi_o.setPosition(imp)
 
+    if addToRm:
+        RoiManager.getRoiManager().addRoi(roi_o)
+        
     return roi_o
     
 def addRoisToRm(rm, imp, contourRoi, band_thickness):
@@ -143,19 +158,22 @@ rt_ch2 = ResultsTable()
 rt_ch3 = ResultsTable()
 anal_2 = Analyzer(imp, rt_ch2)
 anal_3 = Analyzer(imp, rt_ch3)
-
+olay = Overlay()
 
 # Get first ROI in manager
 for idx in range(3):
-    print(idx)
     rm.select(idx)
     contourRoi = imp.getRoi()
-    contourRoi.setName("contour")
+    contourRoi.setName("Contour Frame " + str(contourRoi.getTPosition()))
     o_band_roi = getOutsideBand(imp, contourRoi, band_thickness)
-    c_band_roi = getCortexBand(imp, contourRoi, band_thickness)
+    c_band_roi = getCortexBand(imp, contourRoi, band_thickness, False)
     in_roi = getInside(imp, contourRoi, band_thickness)
     roiz = [contourRoi, o_band_roi, c_band_roi, in_roi]
-
+    
+    for roi in roiz:
+        imp.setRoi(roi)
+        olay.add(roi)
+        
     for c in [2,3]:
         imp.setC(c)
         if c == 2:
@@ -172,6 +190,7 @@ for idx in range(3):
             rt.addValue("Channel", c)
             rt.addValue("Frame", contourRoi.getTPosition())
 
+imp.setOverlay(olay)
 rt_ch2.show(title+"_Ch2")
 rt_ch3.show(title+"_Ch3")
 
