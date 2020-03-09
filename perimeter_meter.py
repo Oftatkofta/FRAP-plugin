@@ -2,7 +2,7 @@
 #@ Float(label="Depth of cortex (um)", required=true, value=10, stepSize=0.1) band_thickness
 #@ Boolean(label="Do Gaussian blur background subtraction?", value=true) blurFlag
 #@ Float(label="radius of blur (µm)", value=5) blurSigma
-#@ Boolean(label("Show blurred image", value=false) showBlurFlag
+#@ Boolean(label="Show blurred image", value=false) showBlurFlag
 
 
 """
@@ -216,8 +216,8 @@ def blurImp(imp, sigma):
     runs blurStack on imp
     returns imp
     """
-    n_chan = 3
-    n_frames = 3
+    n_chan = imp.getNChannels()
+    n_frames = imp.getNFrames()
     inStack = imp.getStack()
     outStack = blurStack(inStack, sigma)
     imp_o = ImagePlus("blurred_"+str(sigma), outStack)
@@ -273,7 +273,7 @@ def _runAnalysis(imp):
                 imp.setC(c)
                 anal.measure()
                 rt.addValue("Channel", c)
-                rt.addValue("Frame", contourRoi.getTPosition())
+                rt.addValue("Frame", rm.getRoi(idx).getTPosition())
     
     
         for roi in roiz:
@@ -286,51 +286,7 @@ def _runAnalysis(imp):
     rt_ch2.show(title+"_Ch2")
     rt_ch3.show(title+"_Ch3")
     
-def runAnalysis(imp):
 
-    rt_ch2 = ResultsTable()
-    rt_ch3 = ResultsTable()
-    anal_2 = Analyzer(imp, rt_ch2)
-    anal_3 = Analyzer(imp, rt_ch3)
-    olay = Overlay()
-    
-    # Go through the ROIs currently in ROImanager
-
-    for roi in rm.getRoisAsArray():
-   
-        contourRoi = roi
-        contourRoi.setName("Contour Frame " + str(contourRoi.getTPosition()))
-        o_band_roi = getOutsideBand(imp, contourRoi, band_thickness, False)
-        c_band_roi = getCortexBand(imp, contourRoi, band_thickness, False)
-        in_roi = getInside(imp, contourRoi, band_thickness, False)
-        roiz = [contourRoi, o_band_roi, c_band_roi, in_roi]
-            
-        for c in [2,3]:
-            
-            if c == 2:
-                anal = anal_2
-                rt = rt_ch2
-            else:
-                anal = anal_3
-                rt = rt_ch3
-                
-            for roi in roiz:
-                imp.setRoi(roi)
-                imp.setC(c)
-                anal.measure()
-                rt.addValue("Channel", c)
-                rt.addValue("Frame", contourRoi.getTPosition())
-    
-    
-        for roi in roiz:
-            imp.setRoi(roi)
-            stack_idx = imp.getStackIndex(1, 1, roi.getTPosition())
-            #roi.setPositon(stack_idx)
-            olay.add(roi)
-    
-    imp.setOverlay(olay)
-    rt_ch2.show(title+"_Ch2")
-    rt_ch3.show(title+"_Ch3")
 
 
 # Get current ImagePlus & set up variables
@@ -348,27 +304,18 @@ rm = RoiManager.getRoiManager() #user facing RoiManager
 frameList = listTimepointsInRoiManager(rm)
 imp1 = extractFrames(frameList, imp)
 imp1.setCalibration(cal)
-imp2 = blurImp(imp1, sigma_px)
-imp2.setCalibration(cal)
-#stk = extractFrame(30, imp)
 
-#imp1 = ImagePlus("raw", stk)
-#imp2 = ImagePlus("blur", stk2)
-imp3 = subtractImps(imp2, imp1)
-imp3.setTitle(title+" subtracted")
-
-#imp1.setCalibration(cal)
-#imp2.setCalibratoin(cal)
-
-_runAnalysis(imp3)
-if showBlurFlag:
-    imp2.show()
+if blurFlag:
+    imp2 = blurImp(imp1, sigma_px)
+    imp2.setCalibration(cal)
+    imp3 = subtractImps(imp2, imp1)
+    imp3.setTitle(title+" subtracted")
+    _runAnalysis(imp3)
+    
+    if showBlurFlag:
+        imp2.show()
 
 
-#imp3.show()
-#
-#imp1.show()
-
-	
-
+else:
+    _runAnalysis(imp3)
 
