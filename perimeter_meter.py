@@ -2,6 +2,7 @@
 #@ Float(label="Depth of cortex (um)", required=true, value=10, stepSize=0.1) band_thickness
 #@ Boolean(label="Do Gaussian blur background subtraction?", value=true) blurFlag
 #@ Float(label="radius of blur (µm)", value=5) blurSigma
+#@ Boolean(label("Show blurred image", value=false) showBlurFlag
 
 
 """
@@ -360,9 +361,12 @@ imp3.setTitle(title+" subtracted")
 #imp2.setCalibratoin(cal)
 
 _runAnalysis(imp3)
+if showBlurFlag:
+    imp2.show()
+
 
 #imp3.show()
-#imp2.show()
+#
 #imp1.show()
 
 	
