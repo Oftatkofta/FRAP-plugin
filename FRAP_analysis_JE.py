@@ -26,12 +26,10 @@ def FRAPsetupDialog(imp):
 	else:
 		default_interval=calibration.frameInterval
 		
-		
 	gd.addNumericField("Frame interval (s):", 1.57, 3)  # show 3 decimals    
 	channels = [str(ch) for ch in range(1, imp.getNChannels()+1)]  
 	gd.addChoice("Analyze channel:", channels, channels[0])
 	
-
 	gd.addSlider("Number of frames to analyze:", 1, imp.getNFrames(), 105)
 	gd.addCheckbox("Automatic post bleach frame detection?", True)
 	gd.addNumericField("First post bleach frame:", 6, 0)
@@ -39,16 +37,16 @@ def FRAPsetupDialog(imp):
 		
 	gd.showDialog()  
 	  
-  	if gd.wasCanceled():  
-		IJ.log("User canceled dialog!")  
-		return  
-  	# Read out the options 
-  	
-  	frame_interval = gd.getNextNumber()
-  	channel = int(gd.getNextChoice())  
-  	max_frame = int(gd.getNextNumber())
-  	manual_FRAP_frame = int(gd.getNextNumber()-1) #Sic 0-index!
-  	autoFRAPflag=gd.getNextBoolean()
+	if gd.wasCanceled():
+		IJ.log("User canceled dialog!")
+		return
+	# Read out the options 
+	
+	frame_interval = gd.getNextNumber()
+	channel = int(gd.getNextChoice())  
+	max_frame = int(gd.getNextNumber())
+	manual_FRAP_frame = int(gd.getNextNumber()-1) #Sic 0-index!
+	autoFRAPflag=gd.getNextBoolean()
 
 	#Set the frame interval in calibration
 
@@ -56,10 +54,10 @@ def FRAPsetupDialog(imp):
 	imp.setCalibration(calibration)
 	
 	#Extract the desired channel
-  	   
-  	imp=channelSelector(imp,channel)	
+	   
+	imp=channelSelector(imp,channel)	
   	
-  	return imp, max_frame, manual_FRAP_frame, autoFRAPflag
+	return imp, max_frame, manual_FRAP_frame, autoFRAPflag
 
 def channelSelector(imp, channelno):
 	'''
@@ -68,7 +66,6 @@ def channelSelector(imp, channelno):
 	'''
 	imps=ChannelSplitter.split(imp)
 	return imps[(channelno-1)]
-
 
  
 # Get ROIs
@@ -206,3 +203,4 @@ for i in range(len(xtofit)):
 	rt.addValue("Frame.interval",frame_interval)
 rt.disableRowLabels()
 rt.show(title)
+
