@@ -1,4 +1,4 @@
-# This file is ment to be placed in the /plugins/ directory of FIJI and is ment
+# This file is meant to be placed in the /plugins/ directory of FIJI and is meant
 # to be run from within the plugins menu.
 #
 # Copyright 2016 Jens Eriksson 
@@ -24,9 +24,7 @@
 
 
 from ij.plugin import ZProjector, Duplicator, HyperStackConverter
-from ij import WindowManager as WindowManager
-from ij import IJ, ImagePlus, ImageStack
-from ij import IJ as IJ
+from ij import WindowManager, IJ, ImagePlus, ImageStack
 from ij.gui import GenericDialog
 import math
 
@@ -37,11 +35,10 @@ def setupDialog(imp):
     can be accessed and set through a convenient GUI
 
     Args:
-        imp: ij.ImagePlus object, usually the currently active window.
+        imp (ij.ImagePlus): Usually the currently active window.
 
     Returns:
-        A GenericDialog Object containig all the desired settings for the
-        analysis
+        GenericDialog: Object containing all the desired settings for the analysis
     """
 
     gd = GenericDialog("Collective migration buddy options")
