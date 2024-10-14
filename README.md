@@ -1,8 +1,8 @@
-# FRAP-plugin
+# Jens' ImageJ Plugins
 
-A set of ImageJ plugins developed by Jens Eriksson at Nanoscopy Gaustad, a node in the Core facility for advanced light microscopy at Oslo University Hospital.
+A set of ImageJ plugins developed by Jens Eriksson.
 
-All plugins are written in Python and can be copied to your FIJI/ImageJ plugins folder.
+Most plugins are written in Jython and can be copied to your FIJI/ImageJ plugins folder.
 
 ## Plugin Files
 
