@@ -14,9 +14,10 @@ This guide will help you set up FFMPEG to work seamlessly on a Windows machine.
    - This script will use the installed version of FFMPEG to encode image stacks into a video.
 */
 
-// Prompt the user for the path to FFMPEG folder, defaulting to a common path
-ffmpegFolder = getDirectory("Enter the path to ffmpeg folder:");
-ffmpegPath = ffmpegFolder.replace("\\", "/") + "ffmpeg.exe";
+// Set default FFMPEG folder and prompt the user, allowing them to change if needed
+defaultFFMPEGFolder = "C:/tools/ffmpeg-master-latest-win64-gpl/bin/";
+ffmpegFolder = getDirectory("Enter the path to ffmpeg folder:", defaultFFMPEGFolder);
+ffmpegPath = ffmpegFolder + "ffmpeg.exe";
 
 // Prompt the user for output directory and generate output filename based on the active image stack
 outputDirectory = getDirectory("Choose output directory:");
@@ -54,9 +55,9 @@ for (i = 1; i <= stackSize; i++) {
 }
 
 // Build the FFMPEG command to encode the saved frames into an MP4 video
-ffmpegCommand = "\"" + ffmpegPath.replace("\\", "/") + "\" -framerate " + frameRate + 
-    " -i \"" + tempDirectory.replace("\\", "/") + "frame_%d.png\" -c:v libx264 -preset slow -crf 18 \"" + 
-    outputFile.replace("\\", "/") + "\"";
+ffmpegCommand = "\"" + ffmpegPath + "\" -framerate " + frameRate + 
+    " -i \"" + tempDirectory + "frame_%d.png\" -c:v libx264 -preset slow -crf 18 \"" + 
+    outputFile + "\"";
 
 // Execute the FFMPEG command
 exec(ffmpegCommand);
