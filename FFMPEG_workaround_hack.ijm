@@ -11,10 +11,12 @@
 // Enable debug mode (set to true for verbose output)
 debugMode = true;
 
-// Function to print debug messages
+// Function to print debug messages with timestamp
 function debug(message) {
     if (debugMode) {
-        print("DEBUG: " + message);
+        getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+        timestamp = "" + year + "-" + IJ.pad(month+1,2) + "-" + IJ.pad(dayOfMonth,2) + " " + IJ.pad(hour,2) + ":" + IJ.pad(minute,2) + ":" + IJ.pad(second,2);
+        print(timestamp + " DEBUG: " + message);
     }
 }
 
@@ -59,12 +61,15 @@ debug("Number of slices in stack: " + stackSize);
 // Store original image ID and title
 originalImageID = getImageID();
 originalTitle = getTitle();
+debug("Original image: " + originalTitle + " (ID: " + originalImageID + ")");
 
 // Create a duplicate of the image/stack
 run("Duplicate...", "duplicate");
+debug("Image duplicated");
 
 // Flatten the image/stack with overlays
 run("Flatten", "stack");
+debug("Image flattened");
 
 // The flattened image is now the active one, so we can directly save it
 run("Image Sequence... ", "format=PNG name=frame_ start=1 digits=4 save=[" + tempDirectory + "]");
@@ -72,14 +77,17 @@ debug("Saved " + stackSize + " flattened frames to " + tempDirectory);
 
 // Close the flattened image/stack
 close();
+debug("Closed flattened image");
 
 // If there's still an image open (the unflatted duplicate), close it
 if (nImages > 1) {
     close();
+    debug("Closed unflatted duplicate");
 }
 
 // Reselect the original image/stack
 selectImage(originalImageID);
+debug("Reselected original image");
 
 // Get the title of the current image/stack (using the stored original title)
 titleWithoutExtension = replace(originalTitle, ".tif", "");
@@ -92,17 +100,29 @@ ffmpegCommand = "\"" + ffmpegPath + "\" -framerate " + frameRate +
     outputFile + "\"";
 debug("FFMPEG command: " + ffmpegCommand);
 
-// Execute the FFMPEG command
-exec(ffmpegCommand);
-debug("FFMPEG command executed");
+// Execute the FFMPEG command and capture the output
+ffmpegOutput = exec("cmd", "/c", ffmpegCommand + " 2>&1");
+debug("FFMPEG command executed. Output: " + ffmpegOutput);
+
+// Check if the output file was created
+if (File.exists(outputFile)) {
+    debug("Output file created successfully: " + outputFile);
+} else {
+    debug("Error: Output file was not created. FFMPEG may have failed.");
+    showMessage("Error", "Failed to create output file. Check the log for details.");
+}
 
 // Delete the temporary frame files
 fileList = getFileList(tempDirectory);
 deletedCount = 0;
 for (i = 0; i < fileList.length; i++) {
     if (startsWith(fileList[i], "frame_") && endsWith(fileList[i], ".png")) {
-        File.delete(tempDirectory + fileList[i]);
-        deletedCount++;
+        success = File.delete(tempDirectory + fileList[i]);
+        if (success) {
+            deletedCount++;
+        } else {
+            debug("Failed to delete file: " + tempDirectory + fileList[i]);
+        }
     }
 }
 debug("Deleted " + deletedCount + " temporary frame files");
@@ -112,15 +132,22 @@ setBatchMode(false);
 debug("Batch mode disabled");
 
 // Show completion message
-showMessage("Video Creation Complete", "The video has been saved to:\n" + outputFile);
+if (File.exists(outputFile)) {
+    showMessage("Video Creation Complete", "The video has been saved to:\n" + outputFile);
+} else {
+    showMessage("Error", "Failed to create the video. Check the log for details.");
+}
 debug("Script execution completed");
 
 // Print final debug message to console
 if (debugMode) {
     print("DEBUG: Script execution summary:");
-    print("  - Input: " + title + " (" + stackSize + " frames)");
+    print("  - Input: " + originalTitle + " (" + stackSize + " frames)");
     print("  - Output: " + outputFile);
     print("  - Frame rate: " + frameRate + " fps");
     print("  - Temporary files created and deleted: " + deletedCount);
+    print("  - FFMPEG output: " + ffmpegOutput);
 }
 
+// Ensure the script terminates
+exit("Script finished. Check the log for details.");
