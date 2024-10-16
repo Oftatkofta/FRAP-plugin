@@ -1,6 +1,6 @@
-// WSL_FFMPG_workaround_hack.ijm
-// This script converts an image stack to an MP4 video using FFMPEG.
-// It's designed to work around potential issues with WSL paths.
+// FFMPEG_ImageStack_to_MP4.ijm
+// This script converts an image stack to an MP4 video using FFMPEG on Windows.
+// It flattens overlays and preserves the current representation in the active window.
 
 // FFMPEG Installation Instructions:
 // 1. Download the latest FFMPEG build from https://ffmpeg.org/download.html
@@ -56,13 +56,33 @@ debug("Frame rate: " + frameRate);
 stackSize = nSlices;
 debug("Number of slices in stack: " + stackSize);
 
-// Save frames as an image sequence
-run("Image Sequence... ", "format=PNG name=frame_ start=1 digits=4 save=[" + tempDirectory + "]");
-debug("Saved " + stackSize + " frames to " + tempDirectory);
+// Store original image ID and title
+originalImageID = getImageID();
+originalTitle = getTitle();
 
-// Get the title of the current image/stack
-title = getTitle();
-titleWithoutExtension = replace(title, ".png", "");
+// Create a duplicate of the image/stack
+run("Duplicate...", "duplicate");
+
+// Flatten the image/stack with overlays
+run("Flatten", "stack");
+
+// The flattened image is now the active one, so we can directly save it
+run("Image Sequence... ", "format=PNG name=frame_ start=1 digits=4 save=[" + tempDirectory + "]");
+debug("Saved " + stackSize + " flattened frames to " + tempDirectory);
+
+// Close the flattened image/stack
+close();
+
+// If there's still an image open (the unflatted duplicate), close it
+if (nImages > 1) {
+    close();
+}
+
+// Reselect the original image/stack
+selectImage(originalImageID);
+
+// Get the title of the current image/stack (using the stored original title)
+titleWithoutExtension = replace(originalTitle, ".tif", "");
 outputFile = outputDirectory + titleWithoutExtension + ".mp4";
 debug("Output file: " + outputFile);
 
@@ -103,3 +123,4 @@ if (debugMode) {
     print("  - Frame rate: " + frameRate + " fps");
     print("  - Temporary files created and deleted: " + deletedCount);
 }
+
