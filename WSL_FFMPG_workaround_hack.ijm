@@ -16,7 +16,10 @@ This guide will help you set up FFMPEG to work seamlessly on a Windows machine.
 
 // Set default FFMPEG folder and prompt the user, allowing them to change if needed
 defaultFFMPEGFolder = "C:/tools/ffmpeg-master-latest-win64-gpl/bin/";
-ffmpegFolder = getDirectory("Enter the path to ffmpeg folder:", defaultFFMPEGFolder);
+Dialog.create("FFMPEG Folder");
+Dialog.addDirectory("Enter the path to ffmpeg folder:", defaultFFMPEGFolder);
+Dialog.show();
+ffmpegFolder = Dialog.getString();
 ffmpegPath = ffmpegFolder + "ffmpeg.exe";
 
 // Prompt the user for output directory and generate output filename based on the active image stack
