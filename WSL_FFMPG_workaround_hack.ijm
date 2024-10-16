@@ -16,7 +16,7 @@ This guide will help you set up FFMPEG to work seamlessly on a Windows machine.
 
 // Prompt the user for the path to FFMPEG folder, defaulting to a common path
 ffmpegFolder = getDirectory("Enter the path to ffmpeg folder:");
-ffmpegPath = ffmpegFolder + "ffmpeg.exe";
+ffmpegPath = ffmpegFolder.replace("\\", "/") + "ffmpeg.exe";
 
 // Prompt the user for output directory and generate output filename based on the active image stack
 outputDirectory = getDirectory("Choose output directory:");
@@ -54,10 +54,12 @@ for (i = 1; i <= stackSize; i++) {
 }
 
 // Build the FFMPEG command to encode the saved frames into an MP4 video
-ffmpegCommand = "\"" + ffmpegPath + "\" -framerate " + frameRate + " -i " + tempDirectory + "frame_%d.png -c:v libx264 -preset slow -crf 18 \"" + outputFile + "\"";
+ffmpegCommand = "\"" + ffmpegPath.replace("\\", "/") + "\" -framerate " + frameRate + 
+    " -i \"" + tempDirectory.replace("\\", "/") + "frame_%d.png\" -c:v libx264 -preset slow -crf 18 \"" + 
+    outputFile.replace("\\", "/") + "\"";
 
 // Execute the FFMPEG command
-runCommand(ffmpegCommand);
+exec(ffmpegCommand);
 
 // Delete only the temporary frames that were created
 for (i = 0; i < createdFiles.length; i++) {
@@ -67,14 +69,3 @@ for (i = 0; i < createdFiles.length; i++) {
 
 // Notify the user that the process is complete
 print("Video encoding complete: " + outputFile);
-
-// Function to execute a system command
-function runCommand(command) {
-    try {
-        runtime = java.lang.Runtime.getRuntime();
-        process = runtime.exec(command);
-        process.waitFor();
-    } catch (e) {
-        print("Error executing command: " + e);
-    }
-}
