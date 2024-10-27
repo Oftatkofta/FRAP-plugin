@@ -122,7 +122,11 @@ debug("FFMPEG command: " + ffmpegCommand); // Debug information for FFMPEG comma
 // Execute the FFMPEG command and capture the return code
 tempLogFile = tempDirectory + "ffmpeg_output.log";
 exec("cmd /c " + ffmpegCommand + " > " + tempLogFile + " 2>&1");
-ffmpegReturnCode = File.exists(outputFile) ? 0 : 1;
+if (File.exists(outputFile)) {
+    ffmpegReturnCode = 0;
+} else {
+    ffmpegReturnCode = 1;
+}
 if (ffmpegReturnCode != 0) {
     // Log the FFMPEG output for debugging
     ffmpegLog = File.openAsString(tempLogFile);
