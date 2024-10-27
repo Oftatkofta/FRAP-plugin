@@ -15,7 +15,8 @@ debugMode = true;
 function debug(message) {
     if (debugMode) {
         getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
-        timestamp = "" + year + "-" + IJ.pad(month+1,2) + "-" + IJ.pad(dayOfMonth,2) + " " + IJ.pad(hour,2) + ":" + IJ.pad(minute,2) + ":" + IJ.pad(second,2);
+        
+timestamp = "" + year + "-" + IJ.pad(month + 1, 2) + "-" + IJ.pad(dayOfMonth, 2) + " " + IJ.pad(hour, 2) + ":" + IJ.pad(minute, 2) + ":" + IJ.pad(second, 2);
         print(timestamp + " DEBUG: " + message);
     }
 }
@@ -50,8 +51,13 @@ if (!File.exists(tempDirectory)) {
 }
 
 // Get current image stack information
-originalTitle = getTitle();
-stackSize = getImageStackSize();
+// Get current image stack information
+// Get current image stack information
+
+// Get the current image stack information
+imp = getTitle(); // Use getTitle() for the current image title in ImageJ macros
+originalTitle = imp; // The imp here is just the title obtained from getTitle()
+stackSize = nSlices; // Use nSlices to get the number of slices in the stack
 frameRate = getNumber("Enter desired frame rate (fps):", 24);
 
 // Enable batch mode only if processing multiple frames
@@ -67,31 +73,27 @@ nChannels = 0;
 
 
 // Get dimensions of the current image
-getDimensions(width, height, nChannels, nSlices);
+width = getWidth();
+height = getHeight();
+nChannels = 1; // Default to 1 channel for non-multichannel images
+slices = nSlices; // Correct usage to get image dimensions in ImageJ macro
 debug("Image dimensions - Width: " + width + ", Height: " + height + ", Channels: " + nChannels + ", Slices: " + stackSize);
 
 // Duplicate the image stack to avoid modifying the original
 run("Duplicate...", "title=TempStack duplicate");
 newStack = getImageID();
 
-// Create a thread pool to save each slice in parallel for improved performance
-stackExecutor = new java.util.concurrent.Executors.newFixedThreadPool(java.lang.Runtime.getRuntime().availableProcessors());
+// Save each slice sequentially since parallel processing is not supported in ImageJ macro scripting
 for (i = 1; i <= stackSize; i++) {
-    final sliceIndex = i;
-    stackExecutor.submit(new Runnable() {
-        run() {
-            setSlice(sliceIndex); // Set the current slice to be saved
+            setSlice(i); // Set the current slice to be saved
             run("Flatten"); // Flatten to ensure overlays are preserved in the saved image
-            framePath = tempDirectory + "frame_" + IJ.pad(sliceIndex, 4) + ".png";
+            framePath = tempDirectory + "frame_" + IJ.pad(i, 4) + ".png";
             saveAs("PNG", framePath); // Save the current slice as a PNG file
             debug("Saved frame: " + framePath);
         }
     });
 }
-stackExecutor.shutdown();
-while (!stackExecutor.isTerminated()) {
-    wait(100); // Wait for all threads to complete
-}
+// No need for thread shutdown, as we are processing slices sequentially
 
 // Close the duplicated stack to free up memory
 selectWindow("TempStack");
