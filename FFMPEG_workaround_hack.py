@@ -36,8 +36,8 @@ if WindowManager.getImageCount() < 1:
     raise SystemExit("No images found.")
 
 # Get information about the current image
-imp = IJ.getImage()
-original_title = imp.getTitle()
+imp = IJ.getImage().duplicate()  # Work on a copy of the image stack to avoid renaming the original
+original_title = imp.getTitle() + "_copy"
 stack_size = imp.getStackSize()
 debug("Original title: " + original_title)
 debug("Number of slices in stack: " + str(stack_size))
