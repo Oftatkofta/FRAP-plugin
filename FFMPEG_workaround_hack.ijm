@@ -60,6 +60,12 @@ if (stackSize > 1) {
     debug("Batch mode enabled");
 }
 
+// Declare dimensions variables before getting the dimensions of the current image
+width = 0;
+height = 0;
+nChannels = 0;
+nSlices = 0;
+
 // Get dimensions of the current image
 getDimensions(width, height, nChannels, nSlices);
 debug("Image dimensions - Width: " + width + ", Height: " + height + ", Channels: " + nChannels + ", Slices: " + stackSize);
