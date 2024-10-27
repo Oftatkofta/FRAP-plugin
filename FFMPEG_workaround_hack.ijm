@@ -51,7 +51,7 @@ if (!File.exists(tempDirectory)) {
 
 // Get current image stack information
 originalTitle = getTitle();
-stackSize = nSlices;
+stackSize = getImageStackSize();
 frameRate = getNumber("Enter desired frame rate (fps):", 24);
 
 // Enable batch mode only if processing multiple frames
@@ -64,7 +64,7 @@ if (stackSize > 1) {
 width = 0;
 height = 0;
 nChannels = 0;
-nSlices = 0;
+
 
 // Get dimensions of the current image
 getDimensions(width, height, nChannels, nSlices);
