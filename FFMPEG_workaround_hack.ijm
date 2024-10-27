@@ -67,23 +67,32 @@ debug("Original image: " + originalTitle + " (ID: " + originalImageID + ")");
 run("Duplicate...", "duplicate");
 debug("Image duplicated");
 
-// Flatten the image/stack with overlays
-run("Flatten", "stack");
-debug("Image flattened");
+// Check if the image is open and has valid dimensions
+if (nImages() > 0) {
+    // Get dimensions of the current image
+    getDimensions(width, height, nSlices, nChannels);
+    debug("Image dimensions: " + width + "x" + height + " with " + nChannels + " channels");
 
-// The flattened image is now the active one, so we can directly save it
-run("Image Sequence... ", "format=PNG name=frame_ start=1 digits=4 save=[" + tempDirectory + "]");
-debug("Saved " + stackSize + " flattened frames to " + tempDirectory);
+    // Check if the image has overlays or is multi-channel before flattening
+    if (nChannels > 1 || getOverlay() != null) {
+        run("Flatten", "stack");
+        debug("Image flattened");
+    } else {
+        debug("No overlays or multi-channel detected; skipping flattening.");
+    }
 
-// Close the flattened image/stack
-close();
-debug("Closed flattened image");
-
-// If there's still an image open (the unflatted duplicate), close it
-if (nImages > 1) {
-    close();
-    debug("Closed unflatted duplicate");
+    // The active image is now the one we want to save
+    run("Image Sequence... ", "format=PNG name=frame_ start=1 digits=4 save=[" + tempDirectory + "]");
+    debug("Saved " + stackSize + " frames to " + tempDirectory);
+} else {
+    debug("Error: No images are open.");
+    showMessage("Error", "No images are open. Please open an image stack and try again.");
+    exit();
 }
+
+// Close the active image/stack
+close();
+debug("Closed image");
 
 // Reselect the original image/stack
 selectImage(originalImageID);
