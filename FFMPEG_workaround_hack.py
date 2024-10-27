@@ -12,23 +12,23 @@ debug_mode = True
 def debug(message):
     if debug_mode:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        IJ.log("{} DEBUG: {}".format(timestamp, message))
+        IJ.log(timestamp + " DEBUG: " + message)
 
-# Set default FFMPEG folder and prompt the user for its location
+# Set default FFMPEG path (hardcoded)
 ffmpeg_path = "C:/tools/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe"
 
 # Verify that ffmpeg_path exists before proceeding
 if not os.path.exists(ffmpeg_path):
     IJ.showMessage("Error", "FFMPEG executable not found at: " + ffmpeg_path + " Please verify the path and try again.")
     raise SystemExit("FFMPEG path verification failed.")
-debug("FFMPEG path: {}".format(ffmpeg_path))
+debug("FFMPEG path: " + ffmpeg_path)
 
 # Prompt the user for output directory
 output_directory = DirectoryChooser("Choose output directory").getDirectory()
 if not output_directory:
     IJ.showMessage("Error", "No output directory selected.")
     raise SystemExit("No output directory selected.")
-debug("Output directory: {}".format(output_directory))
+debug("Output directory: " + output_directory)
 
 # Verify if an active image stack is present
 if WindowManager.getImageCount() < 1:
@@ -39,28 +39,33 @@ if WindowManager.getImageCount() < 1:
 imp = IJ.getImage()
 original_title = imp.getTitle()
 stack_size = imp.getStackSize()
-debug("Original title: {}".format(original_title))
-debug("Number of slices in stack: {}".format(stack_size))
+debug("Original title: " + original_title)
+debug("Number of slices in stack: " + str(stack_size))
+
+# Assumption: The image stack is an RGB color stack
+# The script assumes that each frame in the stack is a full-color (RGB) image.
+# This is important because FFMPEG will expect the input frames to have color information
+# when creating the video output. If the image stack is not RGB (e.g., grayscale or single-channel),
+# the resulting video may not be correct, or FFMPEG may fail.
+# Make sure that your input image stack is in RGB format before running this script.
 
 # Set parameters for video generation
 frame_rate = 24
 output_filename = original_title + ".mp4"
 output_file = os.path.join(output_directory, output_filename)
-debug("Output file: {}".format(output_file))
+debug("Output file: " + output_file)
 
 # Set temporary directory for frames
 temp_directory = IJ.getDirectory("temp")
-debug("Temporary directory for frames: {}".format(temp_directory))
+debug("Temporary directory for frames: " + temp_directory)
 
 # Extract frames from the stack
 if stack_size > 1:
-    
     for i in range(1, stack_size + 1):
         imp.setSlice(i)
-        frame_path = os.path.join(temp_directory, "frame_{:05d}.png".format(i))
+        frame_path = os.path.join(temp_directory, "frame_" + str(i).zfill(5) + ".png")
         IJ.saveAs(imp, "PNG", frame_path)
-        debug("Saved frame: {}".format(frame_path))
-    
+        debug("Saved frame: " + frame_path)    
 else:
     IJ.showMessage("Error", "The current image is not a stack.")
     raise SystemExit("No stack available to convert.")
@@ -98,9 +103,9 @@ for file_name in os.listdir(temp_directory):
             os.remove(frame_path)
             deleted_count += 1
         except Exception as e:
-            debug("Failed to delete file: {}, error: {}".format(frame_path, e))
+            debug("Failed to delete file: " + frame_path + ", error: " + str(e))
 
-debug("Deleted {} temporary frame files".format(deleted_count))
+debug("Deleted " + str(deleted_count) + " temporary frame files")
 
 # Show a completion message to the user
 if os.path.exists(output_file):
@@ -113,9 +118,9 @@ debug("Script execution completed")
 # Print final debug message to console
 if debug_mode:
     IJ.log("DEBUG: Script execution summary:")
-    IJ.log("  - Input: {} ({} frames)".format(original_title, stack_size))
-    IJ.log("  - Output: {}".format(output_file))
-    IJ.log("  - Frame rate: {} fps".format(frame_rate))
-    IJ.log("  - Temporary files created and deleted: {}".format(deleted_count))
+    IJ.log("  - Input: " + original_title + " (" + str(stack_size) + " frames)")
+    IJ.log("  - Output: " + output_file)
+    IJ.log("  - Frame rate: " + str(frame_rate) + " fps")
+    IJ.log("  - Temporary files created and deleted: " + str(deleted_count))
 
 IJ.log("Script finished. Check the log for details.")
