@@ -1,3 +1,15 @@
+# User Inputs and Documentation:
+# - debug_mode: Enable or disable debug mode for verbose output. Set to True or False.
+# - ffmpeg_path: The path to the FFMPEG executable. Adjust according to your FFMPEG installation.
+ffmpeg_path = "C:/tools/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe"  # Default FFMPEG path
+# - output_directory: The directory where the output video will be saved. This is chosen by the user at runtime.
+# - frame_rate: The frame rate of the output video. Adjust as needed.
+frame_rate = 24  # Default frame rate for video generation
+# - The script assumes the image stack is in RGB format. Ensure your image stack is RGB before running.
+
+
+
+
 # FFMPEG Installation on Windows:
 # 1. Download the latest version of FFMPEG from https://ffmpeg.org/download.html#build-windows
 # 2. Extract the downloaded ZIP file to a location of your choice (e.g., C:/tools/ffmpeg)
@@ -15,12 +27,7 @@
 # 5. Save the script with a .py extension to the Fiji plugins folder or any subfolder
 # 6. Run the script by selecting it from 'Plugins' > 'Scripts'
 
-# User Inputs and Documentation:
-# - debug_mode: Enable or disable debug mode for verbose output. Set to True or False.
-# - ffmpeg_path: The path to the FFMPEG executable. Adjust according to your FFMPEG installation.
-# - output_directory: The directory where the output video will be saved. This is chosen by the user at runtime.
-# - frame_rate: The frame rate of the output video. Adjust as needed.
-# - The script assumes the image stack is in RGB format. Ensure your image stack is RGB before running.
+
 
 from ij import IJ, WindowManager
 from ij.io import DirectoryChooser
@@ -59,9 +66,13 @@ if WindowManager.getImageCount() < 1:
     IJ.showMessage("Error", "No open images found.")
     raise SystemExit("No images found.")
 
-# Get information about the current image
-imp = IJ.getImage().duplicate()  # Work on a copy of the image stack to avoid renaming the original
-original_title = imp.getTitle() + "_copy"
+# Get the currently active image and its title before duplicating
+original_imp = IJ.getImage()  # Get the original image
+original_title = original_imp.getTitle()  # Get the title of the original image
+
+# Duplicate the image for processing to avoid modifying the original
+imp = original_imp.duplicate()
+
 stack_size = imp.getStackSize()
 debug("Original title: " + original_title)
 debug("Number of slices in stack: " + str(stack_size))
